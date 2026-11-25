@@ -614,7 +614,7 @@ export class BowlingEngine {
 
     // Ball-to-Pin collisions (disabled if ball dropped into gutter)
     if (b.inPlay && !b.inGutter) {
-      const minDist = BOWLING_LANE.BALL_RADIUS + BOWLING_LANE.PIN_RADIUS;
+      const minDist = BOWLING_LANE.BALL_RADIUS + BOWLING_LANE.PIN_RADIUS + 0.012;
       for (const pin of this.pins) {
         if (pin.cleared) continue;
         const dx = pin.x - b.x;
@@ -625,15 +625,15 @@ export class BowlingEngine {
           const nz = dz / dist;
           const ballSpeed = Math.hypot(b.vx, b.vz);
           // Transfer strong forward + radial scatter impulse to pin
-          const impulse = Math.max(4.5, ballSpeed * 1.15);
-          pin.vx += nx * impulse + b.vx * 0.28 + b.spin * 0.6;
-          pin.vz += nz * impulse + b.vz * 0.25;
+          const impulse = Math.max(5.2, ballSpeed * 1.25);
+          pin.vx += nx * impulse + b.vx * 0.32 + b.spin * 0.7;
+          pin.vz += nz * impulse + b.vz * 0.28;
           this._knockPin(pin, pin.vx, pin.vz);
 
           // Slight ball deflection
-          b.vx -= nx * 0.24;
-          b.vz *= 0.965;
-          this.cameraImpulse = Math.max(this.cameraImpulse, clamp(ballSpeed / 14, 0.25, 0.85));
+          b.vx -= nx * 0.20;
+          b.vz *= 0.97;
+          this.cameraImpulse = Math.max(this.cameraImpulse, clamp(ballSpeed / 13, 0.3, 0.9));
         }
       }
     }
@@ -643,19 +643,19 @@ export class BowlingEngine {
 
   _stepPinsOnly(dt) {
     // Move falling pins and resolve Pin-to-Pin chain collisions!
-    const pinMinDist = BOWLING_LANE.PIN_RADIUS * 2.35;
+    const pinMinDist = BOWLING_LANE.PIN_RADIUS * 2.55;
     for (let i = 0; i < this.pins.length; i++) {
       const p = this.pins[i];
       if (p.cleared || p.standing) continue;
 
       p.x += p.vx * dt;
       p.z += p.vz * dt;
-      p.vx *= Math.exp(-1.9 * dt);
-      p.vz *= Math.exp(-1.9 * dt);
+      p.vx *= Math.exp(-1.75 * dt);
+      p.vz *= Math.exp(-1.75 * dt);
       p.tilt = Math.min(1, p.tilt + dt * 3.8);
 
       const speed = Math.hypot(p.vx, p.vz);
-      if (speed > 0.7) {
+      if (speed > 0.6) {
         for (let j = 0; j < this.pins.length; j++) {
           if (i === j) continue;
           const other = this.pins[j];
@@ -667,14 +667,14 @@ export class BowlingEngine {
             const nx = dx / dist;
             const nz = dz / dist;
             // Ensure chain reaction scatters neighboring pins naturally
-            const transfer = Math.max(2.6, speed * 0.78);
+            const transfer = Math.max(3.0, speed * 0.84);
             other.vx += nx * transfer + (Math.random() - 0.5) * 0.55;
-            other.vz += nz * transfer - 0.45;
+            other.vz += nz * transfer - 0.5;
             if (other.standing) {
               this._knockPin(other, other.vx, other.vz);
             }
-            p.vx *= 0.65;
-            p.vz *= 0.65;
+            p.vx *= 0.68;
+            p.vz *= 0.68;
           }
         }
       }

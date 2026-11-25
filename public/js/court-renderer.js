@@ -41,9 +41,9 @@ export class CourtRenderer {
     this.stateReceivedAt = performance.now();
     this.time = 0;
 
-    // Smooth camera state
-    this.cam = { x: 0, y: 10.6, z: 22.8, lookY: 0.4, lookZ: -2.0, fov: 54 };
-    this._view = new Perspective(0.47, 0.35);
+    // Smooth Wii-Sports-style behind-the-baseline camera
+    this.cam = { x: 0, y: 7.5, z: 19.8, lookY: 0.5, lookZ: -1.8, fov: 50 };
+    this._view = new Perspective(0.42, 0.35);
     this._palette = {};
 
     // Visual effects pools
@@ -197,16 +197,19 @@ export class CourtRenderer {
     const H = this.canvas.height;
     const st = this.state;
 
-    // Smooth dynamic camera tracking
-    const targetCamX = st ? clamp(st.ball.x * 0.16, -1.8, 1.8) : Math.sin(this.time * 0.3) * 0.6;
+    // Smooth zoomed-in Wii-Sports-style camera tracking
     const isServe = st && (st.phase === PHASE.SERVE_READY || st.phase === PHASE.SERVE_TOSS);
-    const targetCamZ = isServe ? 21.8 : 23.2;
-    const targetCamY = isServe ? 9.9 : 10.7;
-    const shake = st && st.cameraImpulse > 0 ? (Math.random() - 0.5) * st.cameraImpulse * 0.35 : 0;
+    const server = isServe ? st.players?.[st.serverSeat] : null;
+    const targetCamX = isServe
+      ? clamp((server?.x ?? 0) * 0.36, -1.9, 1.9)
+      : (st ? clamp(st.ball.x * 0.24, -2.2, 2.2) : Math.sin(this.time * 0.3) * 0.55);
+    const targetCamZ = isServe ? 18.6 : 19.8;
+    const targetCamY = isServe ? 6.9 : 7.5;
+    const shake = st && st.cameraImpulse > 0 ? (Math.random() - 0.5) * st.cameraImpulse * 0.28 : 0;
 
     this.cam.x += (targetCamX - this.cam.x) * Math.min(1, dt * 4.5) + shake;
-    this.cam.y += (targetCamY - this.cam.y) * Math.min(1, dt * 3.2) + shake * 0.5;
-    this.cam.z += (targetCamZ - this.cam.z) * Math.min(1, dt * 3.2);
+    this.cam.y += (targetCamY - this.cam.y) * Math.min(1, dt * 3.4) + shake * 0.5;
+    this.cam.z += (targetCamZ - this.cam.z) * Math.min(1, dt * 3.4);
     this._view.update(this.cam, W, H);
 
     // 1. Vibrant Stadium Sky
@@ -559,6 +562,18 @@ export class CourtRenderer {
     ctx.ellipse(foot.x, foot.y, 0.56 * s, 0.24 * s, 0, 0, Math.PI * 2);
     ctx.fill();
 
+    // 1b. Glowing Strike-Zone Cue Ring when incoming ball is in hittable range!
+    if (p.isHuman && p.inStrikeZone) {
+      const pulse = 0.92 + Math.sin(this.time * 18) * 0.08;
+      ctx.save();
+      ctx.strokeStyle = HUD.ball;
+      ctx.lineWidth = Math.max(2.5, 3.6 * (W / 1280));
+      ctx.beginPath();
+      ctx.ellipse(foot.x, foot.y, 0.92 * s * pulse, 0.38 * s * pulse, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
+
     // Animated legs and shoes
     const stride = speed > 0.4 ? Math.sin(this.time * 14 + p.seat) * 0.22 : 0;
     for (const side of [-1, 1]) {
@@ -858,8 +873,21 @@ export class CourtRenderer {
       }
     }
 
-    // 3. Optic-Yellow Tennis Ball with Gloss & Curved Seam
-    const r = Math.max(4.5, 0.145 * bp.scale);
+    // 2b. Incoming Rally Strike-Zone Timing Halo when any human player can hit the ball!
+    const anyHumanInStrikeZone = st.phase === PHASE.RALLY && st.players?.some((p) => p.active && p.isHuman && p.inStrikeZone);
+    if (anyHumanInStrikeZone) {
+      const s = W / 1280;
+      const pulse = 0.85 + Math.sin(this.time * 20) * 0.15;
+      const haloR = Math.max(14, 0.34 * bp.scale * pulse);
+      ctx.strokeStyle = HUD.ball;
+      ctx.lineWidth = Math.max(2, 3 * s);
+      ctx.beginPath();
+      ctx.arc(bp.x, bp.y, haloR, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    // 3. Optic-Yellow Tennis Ball with Crisp Rim & Curved Seam
+    const r = Math.max(5.5, 0.17 * bp.scale);
     const isBlazing = b.shotType === SHOT_TYPES.SMASH || b.shotType === SHOT_TYPES.ROCKET_SERVE;
     if (isBlazing && b.inPlay) {
       const glow = ctx.createRadialGradient(bp.x, bp.y, r * 0.5, bp.x, bp.y, r * 2.8);
@@ -876,6 +904,9 @@ export class CourtRenderer {
     ctx.beginPath();
     ctx.arc(bp.x, bp.y, r, 0, Math.PI * 2);
     ctx.fill();
+    ctx.strokeStyle = 'rgba(15, 23, 42, 0.42)';
+    ctx.lineWidth = Math.max(1, r * 0.14);
+    ctx.stroke();
 
     // Subtle white tennis seam
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.85)';

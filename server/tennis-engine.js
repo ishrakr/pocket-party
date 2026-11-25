@@ -13,33 +13,33 @@ import {
   clamp
 } from '../shared/protocol.js';
 
-const GRAVITY = 11.4; // Tuned for satisfying arcade tennis hang time & crisp bounce
+const GRAVITY = 11.2; // Tuned for satisfying arcade tennis hang time & crisp bounce
 const AIR_DRAG = 0.13;
-const BOUNCE_RESTITUTION = 0.76;
+const BOUNCE_RESTITUTION = 0.77;
 const BOUNCE_FRICTION = 0.86;
-const SWING_BUFFER_SEC = 0.20; // Generous early swing buffer over Wi-Fi
+const SWING_BUFFER_SEC = 0.28; // Generous early swing buffer over Wi-Fi
 
 const AI_PROFILES = {
   [CPU_DIFFICULTIES.ROOKIE]: {
-    speedMul: 0.76,
-    reactionDelay: 0.18,
-    accuracySpread: 1.35,
-    powerRange: [0.42, 0.68],
-    errorChance: 0.14,
-    smashChance: 0.25,
-    lobChance: 0.12
+    speedMul: 0.72,
+    reactionDelay: 0.20,
+    accuracySpread: 1.45,
+    powerRange: [0.38, 0.62],
+    errorChance: 0.18,
+    smashChance: 0.20,
+    lobChance: 0.10
   },
   [CPU_DIFFICULTIES.PRO]: {
-    speedMul: 0.96,
-    reactionDelay: 0.09,
-    accuracySpread: 0.72,
-    powerRange: [0.58, 0.84],
-    errorChance: 0.06,
-    smashChance: 0.60,
-    lobChance: 0.22
+    speedMul: 0.90,
+    reactionDelay: 0.11,
+    accuracySpread: 0.82,
+    powerRange: [0.54, 0.78],
+    errorChance: 0.08,
+    smashChance: 0.50,
+    lobChance: 0.20
   },
   [CPU_DIFFICULTIES.CHAMPION]: {
-    speedMul: 1.12,
+    speedMul: 1.10,
     reactionDelay: 0.04,
     accuracySpread: 0.36,
     powerRange: [0.72, 0.96],
@@ -395,7 +395,7 @@ export class TennisEngine {
 
     // Serve hit check
     if (this.phase === PHASE.SERVE_TOSS && seat === this.serverSeat) {
-      if (this.ball.y >= 1.48) {
+      if (this.ball.y >= 1.20) {
         this._executeServeHit(player, { power, spin, aim, elevation });
         return true;
       }
@@ -418,7 +418,7 @@ export class TennisEngine {
     this.phase = PHASE.SERVE_TOSS;
     this.phaseTimer = 0;
     this._snapBallToServer();
-    this.ball.vy = 6.35; // Reaches sweet-spot apex around y = 2.98m at t = 0.56s
+    this.ball.vy = 6.50; // Reaches sweet-spot apex around y = 3.1m with comfortable hang time
     this.ball.inPlay = true;
     this._emit('serve_toss', { seat: this.serverSeat });
   }
@@ -430,9 +430,9 @@ export class TennisEngine {
 
     // Apex sweet spot timing quality (1.0 right at apex vy === 0, drops if too early/late)
     const apexDist = Math.abs(this.ball.vy);
-    const heightBonus = this.ball.y >= 2.45 ? 1 : clamp((this.ball.y - 1.45) / 1.0, 0, 1);
-    const sweetSpot = clamp((1 - apexDist / 3.4) * heightBonus, 0, 1);
-    const isRocket = sweetSpot > 0.72 && power > 0.58;
+    const heightBonus = this.ball.y >= 2.25 ? 1 : clamp((this.ball.y - 1.20) / 1.05, 0, 1);
+    const sweetSpot = clamp((1 - apexDist / 3.9) * heightBonus, 0, 1);
+    const isRocket = sweetSpot > 0.68 && power > 0.55;
 
     // Target diagonal service box
     // Blue serving deuce (+X) -> targets Red's right box: X in [-4.115, 0], Z in [-6.40, 0]
@@ -505,9 +505,9 @@ export class TennisEngine {
     const horizDist = Math.hypot(dx, dz);
 
     // Forgiving arcade strike envelope!
-    const maxReach = 2.65;
-    if (Math.abs(dx) > 2.35 || Math.abs(dz) > 2.45 || horizDist > maxReach) return false;
-    if (this.ball.y > 3.55) return false;
+    const maxReach = 3.15;
+    if (Math.abs(dx) > 2.75 || Math.abs(dz) > 2.85 || horizDist > maxReach) return false;
+    if (this.ball.y > 3.9) return false;
 
     // Must bounce once on a serve before being returned!
     if (this.isServeBall && this.ball.bounces === 0) return false;
@@ -1092,7 +1092,7 @@ export class TennisEngine {
         targetX += p.nudgeX * sideSign * 2.4;
       }
 
-      const maxSpeed = p.isHuman ? 8.6 : 8.4 * AI_PROFILES[this.difficulty].speedMul;
+      const maxSpeed = p.isHuman ? 9.8 : 8.4 * AI_PROFILES[this.difficulty].speedMul;
       const dx = targetX - p.x;
       const dz = targetZ - p.z;
       const dist = Math.hypot(dx, dz);
@@ -1282,6 +1282,17 @@ export class TennisEngine {
     this.step(dt);
   }
 
+  _isPlayerInStrikeZone(p) {
+    if (this.phase !== PHASE.RALLY || !p.active || p.hitCooldown > 0) return false;
+    if (this.lastHitterTeam === p.team) return false;
+    if (this.isServeBall && this.ball.bounces === 0) return false;
+    const sideSign = p.team === TEAMS.BLUE ? 1 : -1;
+    if (this.ball.z * sideSign < -0.5) return false;
+    const dx = this.ball.x - p.x;
+    const dz = this.ball.z - p.z;
+    return Math.abs(dx) <= 2.95 && Math.abs(dz) <= 3.15 && Math.hypot(dx, dz) <= 3.45 && this.ball.y <= 3.9;
+  }
+
   getSnapshot() {
     const score = formatScore(this.points[0], this.points[1]);
     return {
@@ -1343,6 +1354,7 @@ export class TennisEngine {
         swingSide: p.swingSide,
         swingPower: Number(p.swingPower.toFixed(2)),
         isLunge: p.isLunge,
+        inStrikeZone: this._isPlayerInStrikeZone(p),
         pose: p.pose
       }))
     };

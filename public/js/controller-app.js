@@ -67,6 +67,7 @@ const shotFeedback = $('shot-feedback');
 const shotModGroup = $('shot-mod-group');
 const bowlingControlsGroup = $('bowling-controls-group');
 const btnBowlLeft = $('btn-bowl-left');
+const inputBowlPos = $('input-bowl-pos');
 const btnBowlCenter = $('btn-bowl-center');
 const btnBowlRight = $('btn-bowl-right');
 const swingMeterFill = $('swing-meter-fill');
@@ -560,6 +561,10 @@ socket.on(MSG.GAME_STATE, ({ state }) => {
     setText(ctrlBowlTurn, isMyTurn ? 'Your turn' : `${bowlerName}’s turn`);
     if (ctrlBowlTurn.dataset.mine !== String(isMyTurn)) ctrlBowlTurn.dataset.mine = String(isMyTurn);
     bowlLaneX = state.aimX ?? bowlLaneX;
+    if (inputBowlPos && document.activeElement !== inputBowlPos) {
+      inputBowlPos.value = String(bowlLaneX);
+      inputBowlPos.disabled = !isMyTurn || state.phase !== BOWLING_PHASE.AIMING;
+    }
     setReady(isMyTurn && state.phase === BOWLING_PHASE.AIMING);
 
     if (state.phase === BOWLING_PHASE.AIMING) {
@@ -589,7 +594,9 @@ socket.on(MSG.GAME_STATE, ({ state }) => {
   setText(ctrlPtsRed, String(state.scoreText.red));
 
   const isMyServe = state.serverSeat === mySeat;
-  setReady(isMyServe && (state.phase === PHASE.SERVE_READY || state.phase === PHASE.SERVE_TOSS));
+  const myPlayer = state.players?.[mySeat];
+  const readyToStrike = Boolean(myPlayer?.inStrikeZone);
+  setReady((isMyServe && (state.phase === PHASE.SERVE_READY || state.phase === PHASE.SERVE_TOSS)) || readyToStrike);
 
   if (state.phase === PHASE.SERVE_READY) {
     if (isMyServe) {
@@ -608,8 +615,13 @@ socket.on(MSG.GAME_STATE, ({ state }) => {
       setAction('Swing');
     }
   } else if (state.phase === PHASE.RALLY) {
-    setPrompt(state.rallyCount > 1 ? `Rally: ${state.rallyCount} shots` : 'Ball in play', '');
-    setAction('Swing');
+    if (readyToStrike) {
+      setPrompt('Swing now!', 'go');
+      setAction('Swing now!');
+    } else {
+      setPrompt(state.rallyCount > 1 ? `Rally: ${state.rallyCount} shots` : 'Ball in play', '');
+      setAction('Swing');
+    }
   } else if (state.phase === PHASE.POINT_OVER || state.phase === PHASE.GAME_OVER) {
     setPrompt(state.callout?.text ? sentence(state.callout.text) : (state.phase === PHASE.GAME_OVER ? 'Game' : 'Point'), '');
     setAction('Next point…', false);
@@ -837,9 +849,15 @@ document.querySelectorAll('#shot-mod-group .seg-btn').forEach((btn) => {
 });
 
 btnBowlLeft?.addEventListener('click', () => nudgeBowlingLane(-0.09));
+inputBowlPos?.addEventListener('input', () => {
+  if (!isMyBowlingTurn()) return;
+  bowlLaneX = clamp(Number(inputBowlPos.value) || 0, -0.42, 0.42);
+  socket.send({ type: MSG.BOWL_AIM, laneX: bowlLaneX, spin: bowlHook });
+});
 btnBowlCenter?.addEventListener('click', () => {
   if (!isMyBowlingTurn()) return;
   bowlLaneX = 0;
+  if (inputBowlPos) inputBowlPos.value = '0';
   socket.send({ type: MSG.BOWL_AIM, laneX: 0, aimAngle: 0, spin: bowlHook });
 });
 btnBowlRight?.addEventListener('click', () => nudgeBowlingLane(0.09));

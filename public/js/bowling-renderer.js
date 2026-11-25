@@ -18,8 +18,9 @@ export class BowlingRenderer {
 
     this.state = null;
     this.time = 0;
-    this.cam = { x: 0, y: 2.35, z: 4.3, lookY: 0.42, lookZ: -12.0, fov: 50 };
-    this._view = new Perspective(0.5, 0.3);
+    // Telephoto Wii-Sports-style alley perspective right behind the bowler
+    this.cam = { x: 0, y: 1.52, z: 2.85, lookY: 0.30, lookZ: -15.5, fov: 35 };
+    this._view = new Perspective(0.46, 0.3);
     this._palette = {};
     this._ballGradients = new Map();
 
@@ -125,27 +126,28 @@ export class BowlingRenderer {
     const H = this.canvas.height;
     const st = this.state;
 
-    // Dynamic Alley Camera: glides closer as ball approaches the pins
-    let targetCamX = 0;
-    let targetCamY = 2.35;
-    let targetCamZ = 4.3;
-    let targetLookZ = -12.0;
+    // Dynamic Telephoto Alley Camera: zooms smoothly behind the ball into the pin deck
+    let targetCamX = clamp((st?.aimX ?? 0) * 0.4, -0.25, 0.25);
+    let targetCamY = 1.52;
+    let targetCamZ = 2.85;
+    let targetLookZ = -15.5;
 
     if (st && (st.phase === BOWLING_PHASE.ROLLING || st.phase === BOWLING_PHASE.PIN_SETTLE)) {
       const bz = st.ball?.z ?? 0;
-      targetCamX = clamp((st.ball?.x ?? 0) * 0.35, -0.35, 0.35);
-      targetCamZ = clamp(bz + 5.6, -11.2, 4.3);
-      targetCamY = clamp(2.35 - Math.max(0, -bz) * 0.032, 1.55, 2.35);
-      targetLookZ = -18.5;
+      const progress = clamp(-bz / BOWLING_LANE.LENGTH, 0, 1);
+      targetCamX = clamp((st.ball?.x ?? 0) * 0.45, -0.4, 0.4);
+      targetCamZ = clamp(bz + 4.2, -13.0, 2.85);
+      targetCamY = clamp(1.52 - progress * 0.52, 0.98, 1.52);
+      targetLookZ = -18.6;
     } else if (!st || st.phase === BOWLING_PHASE.LOBBY) {
-      targetCamX = Math.sin(this.time * 0.4) * 0.28;
+      targetCamX = Math.sin(this.time * 0.4) * 0.22;
     }
 
-    const shake = st && st.cameraImpulse > 0 ? (Math.random() - 0.5) * st.cameraImpulse * 0.09 : 0;
-    this.cam.x += (targetCamX - this.cam.x) * Math.min(1, dt * 4.5) + shake;
-    this.cam.y += (targetCamY - this.cam.y) * Math.min(1, dt * 3.5) + shake * 0.5;
-    this.cam.z += (targetCamZ - this.cam.z) * Math.min(1, dt * 3.5);
-    this.cam.lookZ += (targetLookZ - this.cam.lookZ) * Math.min(1, dt * 3.5);
+    const shake = st && st.cameraImpulse > 0 ? (Math.random() - 0.5) * st.cameraImpulse * 0.08 : 0;
+    this.cam.x += (targetCamX - this.cam.x) * Math.min(1, dt * 4.8) + shake;
+    this.cam.y += (targetCamY - this.cam.y) * Math.min(1, dt * 3.8) + shake * 0.5;
+    this.cam.z += (targetCamZ - this.cam.z) * Math.min(1, dt * 3.8);
+    this.cam.lookZ += (targetLookZ - this.cam.lookZ) * Math.min(1, dt * 3.8);
     this._view.update(this.cam, W, H);
 
     this._drawAlleyBackdrop(ctx, W, H);
@@ -270,14 +272,25 @@ export class BowlingRenderer {
     // Keep projected foreground vertices ahead of the camera as it tracks the roll.
     const nearZ = Math.min(2.2, this.cam.z - 0.9);
 
-    // Neighboring dark alley floor surround
+    // Neighboring dark alley floor surround + subtle adjacent lanes for real alley depth
     const floorPts = [
-      this.project(-2.8, -0.04, farZ, W, H),
-      this.project(2.8, -0.04, farZ, W, H),
-      this.project(2.8, -0.04, nearZ, W, H),
-      this.project(-2.8, -0.04, nearZ, W, H)
+      this.project(-3.4, -0.04, farZ, W, H),
+      this.project(3.4, -0.04, farZ, W, H),
+      this.project(3.4, -0.04, nearZ, W, H),
+      this.project(-3.4, -0.04, nearZ, W, H)
     ];
     this._drawQuad(ctx, floorPts, '#101B30');
+
+    for (const side of [-1, 1]) {
+      const cx = side * 1.92;
+      const sideLanePts = [
+        this.project(cx - hw, -0.02, farZ, W, H),
+        this.project(cx + hw, -0.02, farZ, W, H),
+        this.project(cx + hw, -0.02, nearZ, W, H),
+        this.project(cx - hw, -0.02, nearZ, W, H)
+      ];
+      this._drawQuad(ctx, sideLanePts, 'rgba(214, 167, 113, 0.16)');
+    }
 
     // Left & Right Gutters
     for (const sign of [-1, 1]) {
@@ -609,6 +622,7 @@ export class BowlingRenderer {
     const s = W / 1280;
     if (st.phase !== BOWLING_PHASE.LOBBY) {
       this._drawScoreboard(ctx, s, st);
+      this._drawPinDiagram(ctx, W, s, st);
       drawRadar(ctx, W, s, st.lastShotMph);
     }
     drawRoomCode(ctx, W, H, s, this.roomCode);
@@ -617,6 +631,45 @@ export class BowlingRenderer {
       if (active?.isHuman) drawPrompt(ctx, W, H, s, `${active.name} to bowl — swing forward to roll`);
     }
     drawCallout(ctx, W, H, s, st.callout, st.clock);
+  }
+
+  _drawPinDiagram(ctx, W, s, st) {
+    if (!st.pins || st.pins.length < 10) return;
+    const boxW = 92 * s;
+    const boxH = 74 * s;
+    const x = W - HUD.pad * s - boxW;
+    const y = (HUD.pad + 126) * s;
+    ctx.save();
+    fillPanel(ctx, x, y, boxW, boxH, s);
+    // 4-row inverted triangle matching player view (back row 7-8-9-10 at top, headpin 1 at bottom)
+    const rows = [
+      [6, 7, 8, 9],
+      [3, 4, 5],
+      [1, 2],
+      [0]
+    ];
+    rows.forEach((row, rIdx) => {
+      const py = y + (15 + rIdx * 15) * s;
+      const startX = x + boxW / 2 - ((row.length - 1) * 18 * s) / 2;
+      row.forEach((pinIdx, cIdx) => {
+        const pin = st.pins[pinIdx];
+        const standing = pin && pin.standing && !pin.cleared;
+        const px = startX + cIdx * 18 * s;
+        ctx.beginPath();
+        ctx.arc(px, py, 5.2 * s, 0, Math.PI * 2);
+        if (standing) {
+          ctx.fillStyle = HUD.chalk;
+          ctx.fill();
+          ctx.strokeStyle = '#ef4444';
+          ctx.lineWidth = Math.max(1, 1.4 * s);
+          ctx.stroke();
+        } else {
+          ctx.fillStyle = 'rgba(169, 183, 214, 0.22)';
+          ctx.fill();
+        }
+      });
+    });
+    ctx.restore();
   }
 
   _drawScoreboard(ctx, s, st) {
