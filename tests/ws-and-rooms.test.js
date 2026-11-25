@@ -1,5 +1,7 @@
 import { describe, it, after } from 'node:test';
 import assert from 'node:assert/strict';
+import net from 'node:net';
+import { WebSocketClient } from '../server/ws-server.js';
 import { createAppServer } from '../server/index.js';
 import { MSG, MATCH_MODES, PHASE, GAMES, BOWLING_PHASE } from '../shared/protocol.js';
 
@@ -80,7 +82,7 @@ describe('HTTP/HTTPS Server, RFC 6455 WebSockets & 4-Player Multiplayer Rooms', 
     assert.equal(proxyCfg.isPublicDeployment, true);
     assert.equal(proxyCfg.secure, true);
 
-    const routes = ['/', '/tv', '/receiver', '/controller', '/play', '/demo', '/css/styles.css', '/shared/protocol.js', '/js/court-renderer.js', '/js/bowling-renderer.js', '/js/tv-app.js', '/js/controller-app.js', '/js/landing-app.js', '/js/cast-bridge.js', '/js/motion-controller.js', '/js/qr.js', '/js/audio.js', '/js/ws-client.js'];
+    const routes = ['/', '/tv', '/receiver', '/controller', '/play', '/demo', '/css/styles.css', '/icons.svg', '/favicon.svg', '/fonts/archivo.woff2', '/js/hud-theme.js', '/shared/protocol.js', '/js/court-renderer.js', '/js/bowling-renderer.js', '/js/tv-app.js', '/js/controller-app.js', '/js/landing-app.js', '/js/cast-bridge.js', '/js/motion-controller.js', '/js/qr.js', '/js/audio.js', '/js/ws-client.js'];
     for (const r of routes) {
       const res = await fetch(`http://127.0.0.1:${httpPort}${r}`);
       assert.equal(res.status, 200, `Expected 200 OK for ${r}`);
@@ -241,5 +243,39 @@ describe('HTTP/HTTPS Server, RFC 6455 WebSockets & 4-Player Multiplayer Rooms', 
 
     tv.close();
     p1.close();
+  });
+
+  it('serves static assets compressed with ETag revalidation and long-lived fonts', async () => {
+    const base = `http://127.0.0.1:${httpPort}`;
+    const first = await fetch(`${base}/js/court-renderer.js`, { headers: { 'Accept-Encoding': 'gzip' } });
+    assert.equal(first.status, 200);
+    assert.equal(first.headers.get('content-encoding'), 'gzip');
+    const etag = first.headers.get('etag');
+    assert.ok(etag);
+    const body = await first.text();
+    assert.match(body, /export class CourtRenderer/);
+
+    const revalidated = await fetch(`${base}/js/court-renderer.js`, { headers: { 'If-None-Match': etag } });
+    assert.equal(revalidated.status, 304);
+
+    const font = await fetch(`${base}/fonts/archivo.woff2`);
+    assert.equal(font.headers.get('content-type'), 'font/woff2');
+    assert.match(font.headers.get('cache-control'), /max-age=\d+/);
+
+    const missing = await fetch(`${base}/nope.js`);
+    assert.equal(missing.status, 404);
+  });
+});
+
+describe('WebSocketClient socket errors', () => {
+  it('closes the client instead of throwing when a socket error has no listener', () => {
+    const socket = new net.Socket();
+    const client = new WebSocketClient(socket, {});
+    let closed = false;
+    client.on('close', () => { closed = true; });
+    assert.doesNotThrow(() => socket.emit('error', Object.assign(new Error('read ECONNRESET'), { code: 'ECONNRESET' })));
+    assert.equal(client.readyState, 3);
+    assert.ok(closed);
+    socket.destroy();
   });
 });

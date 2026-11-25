@@ -2,92 +2,116 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PocketParty — Cast & AirPlay Motion Party Tennis</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#0F2350">
+  <meta name="description" content="Put tennis or bowling on your TV and swing your phone to play. Up to four players, nothing to install.">
+  <title>PocketParty: motion tennis and bowling on your TV</title>
+  <link rel="preload" href="/fonts/archivo.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/css/styles.css">
 </head>
-<body>
-  <div class="landing-shell">
-    <header class="hero">
-      <div class="hero-badge">🎾 Motion Tennis • 🎳 Party Bowling • Google Cast • AirPlay • 1–4 Players</div>
-      <h1>PocketParty</h1>
-      <p>
-        Cast 3D party sports straight to your TV with <strong>Google Cast</strong> or <strong>AirPlay</strong>,
-        then swing your phone as a wireless motion controller for <strong>Motion Tennis</strong> &amp; <strong>Party Bowling</strong>!
-        Up to <strong>4 phones</strong> can join together.
-      </p>
+<body class="landing">
+  <div class="landing-wrap">
+    <header class="topbar">
+      <a class="wordmark" href="/" aria-label="PocketParty home">
+        <svg aria-hidden="true"><use href="/icons.svg#g-tennis"/></svg>
+        PocketParty
+      </a>
+      <a class="btn btn-line btn-sm" href="/tv.html">
+        <svg class="icon" aria-hidden="true"><use href="/icons.svg#i-tv"/></svg>
+        This is the TV
+      </a>
     </header>
 
-    <section class="cards-grid">
-      <!-- Card 1: Cast from Phone & Become Controller P1 -->
-      <article class="card card-featured">
-        <div class="card-icon">📱</div>
-        <h2>Cast from Phone &amp; Play</h2>
-        <p>
-          Start a match right from your phone. Cast the stadium to your TV via <strong>Google Cast</strong>,
-          <strong>Chrome Presentation</strong>, or <strong>Apple AirPlay</strong> — your phone instantly locks in as <strong>Player 1 Racket</strong>!
-        </p>
-        <div class="card-actions">
-          <button id="btn-cast-and-play" class="btn btn-gold btn-block">
-            📺 Cast to TV &amp; Be P1 Controller
-          </button>
-          <button id="btn-airplay-and-play" class="btn btn-primary btn-block">
-             AirPlay Stream &amp; Be P1 Controller
-          </button>
-        </div>
-      </article>
+    <section class="hero">
+      <h1 class="display">Your phone is the racket.</h1>
+      <p>Put tennis or bowling on the TV, then swing your phone to play. Up to four people, nothing to install.</p>
+    </section>
 
-      <!-- Card 2: Join Multiplayer Match -->
-      <article class="card">
-        <div class="card-icon">🤝</div>
-        <h2>Join Multiplayer Match</h2>
-        <p>
-          Already see the 3D court on the TV? Enter the 4-character Room Code (or scan the TV QR code) to grab your racket for <strong>1v1</strong>, <strong>2v2 Doubles</strong>, or <strong>Co-op vs CPU</strong>.
-        </p>
-        <div class="card-actions">
-          <form id="join-form" style="display:flex; flex-direction:column; gap:10px;">
-            <div class="code-input-row">
-              <input id="input-room-code" class="text-input code-input" maxlength="6" placeholder="CODE" required>
-              <button type="submit" class="btn btn-green" style="white-space:nowrap;">Join →</button>
-            </div>
+    <main class="court">
+      <div class="court-lines" aria-hidden="true">
+        <span class="l-outer"></span>
+        <span class="l-single-top"></span>
+        <span class="l-single-bot"></span>
+        <span class="l-svc-left"></span>
+        <span class="l-svc-right"></span>
+        <span class="l-center"></span>
+        <span class="l-mark-left"></span>
+        <span class="l-mark-right"></span>
+        <span class="l-net"></span>
+      </div>
+      <svg class="ball-mark" aria-hidden="true"><use href="/icons.svg#g-tennis"/></svg>
+
+      <section class="court-half" aria-labelledby="host-title">
+        <h2 id="host-title" class="display">Host a game</h2>
+        <p>Start a room on this phone and send the court to your TV. Your phone becomes player 1.</p>
+        <div class="actions">
+          <button id="btn-cast-and-play" class="btn btn-ball btn-lg">
+            <svg class="icon" aria-hidden="true"><use href="/icons.svg#i-cast"/></svg>
+            Cast to TV
+          </button>
+          <button id="btn-airplay-and-play" class="link-btn" type="button">Use AirPlay instead</button>
+        </div>
+      </section>
+
+      <section class="court-half court-half-join" aria-labelledby="join-title">
+        <h2 id="join-title" class="display">Join a game</h2>
+        <p>Enter the four-character code shown on the TV, or scan its QR code.</p>
+        <div class="actions">
+          <form id="join-form" class="code-form" autocomplete="off">
+            <label for="input-room-code" class="sr-only">Room code</label>
+            <input id="input-room-code" class="code-input" maxlength="4" placeholder="ABCD" inputmode="text" autocapitalize="characters" spellcheck="false" required>
+            <button type="submit" class="btn btn-ball btn-lg">Join</button>
           </form>
+          <p id="join-error" class="hidden" role="alert" style="color:#ffd9d4; font-weight:600; font-size:0.9375rem;"></p>
         </div>
-      </article>
+      </section>
+    </main>
 
-      <!-- Card 3: Big TV Screen / Instant Split-Screen Demo -->
-      <article class="card">
-        <div class="card-icon">🖥️</div>
-        <h2>TV Screen &amp; Quick Play</h2>
-        <p>
-          Open the fullscreen 3D TV court on a Smart TV, HDMI laptop, or Apple TV Mirroring — OR launch the instant <strong>Split-Screen Demo</strong> to play right now on one screen!
-        </p>
-        <div class="card-actions">
-          <a href="/tv.html" class="btn btn-primary btn-block">🏟️ Open Fullscreen TV Court</a>
-          <a href="/demo.html" class="btn btn-ghost btn-block">⚡ Instant Split-Screen Demo (TV + Phone)</a>
-        </div>
-      </article>
+    <ol class="steps">
+      <li>
+        <h3>Put the court on the TV</h3>
+        <p>Cast from your phone, or open <span id="tv-url-inline" class="url">/tv</span> in any TV or laptop browser.</p>
+      </li>
+      <li>
+        <h3>Everyone joins</h3>
+        <p>Friends scan the QR code on the TV. Empty seats are played by the computer.</p>
+      </li>
+      <li>
+        <h3>Swing</h3>
+        <p>Flick up to serve, swing to hit, roll your wrist for spin. Phones without motion sensors can swipe.</p>
+      </li>
+    </ol>
+
+    <section class="demo-strip">
+      <p><strong>No TV nearby?</strong>Try it on this screen with the court and a controller side by side.</p>
+      <a href="/demo.html" class="btn btn-court">Open split-screen demo</a>
     </section>
 
-    <!-- Device Capabilities & Cast / LAN Setup -->
-    <section class="info-panel">
-      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+    <details class="setup">
+      <summary>
+        Casting and network setup
+        <svg class="icon" aria-hidden="true"><use href="/icons.svg#i-chevron-down"/></svg>
+      </summary>
+      <div class="setup-body">
         <div>
-          <strong style="font-size:1.05rem;">📡 Casting &amp; Local Network Status</strong>
-          <div id="lan-hint" style="font-size:0.86rem; color:#475569; margin-top:2px;">Checking server network addresses...</div>
+          <div class="label">Phones join at</div>
+          <div id="lan-hint">Checking network addresses…</div>
         </div>
-        <button id="btn-toggle-cast-cfg" class="btn btn-ghost btn-sm">Configure Google Cast App ID</button>
+        <div>
+          <div class="label">This browser supports</div>
+          <ul id="cap-list" class="cap-list"></ul>
+        </div>
+        <div>
+          <label class="label" for="input-cast-appid">Google Cast app ID (optional)</label>
+          <div class="appid-row">
+            <input id="input-cast-appid" class="input" placeholder="e.g. A1B2C3D4" spellcheck="false">
+            <button id="btn-save-appid" class="btn btn-court">Save app ID</button>
+          </div>
+          <p id="appid-status" class="muted" style="margin-top:0.5rem;">Only needed for native Chromecast launch. Register <span class="url">/receiver.html</span> as a Custom Web Receiver in the Google Cast console. Chrome casting, AirPlay and the TV browser work without it.</p>
+        </div>
       </div>
-
-      <div id="cap-list" class="cap-list"></div>
-
-      <div id="cast-cfg-box" class="hidden" style="margin-top:14px; padding-top:14px; border-top:1px solid #cbd5e1; display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
-        <input id="input-cast-appid" class="text-input" style="max-width:260px; font-size:0.9rem; padding:9px 12px;" placeholder="e.g. A1B2C3D4 (Optional)">
-        <button id="btn-save-appid" class="btn btn-primary btn-sm">Save App ID</button>
-        <span style="font-size:0.8rem; color:#475569;">
-          Register <code>/receiver.html</code> in the Google Cast Developer Console to use native Chromecast App Casting (optional — Presentation API, AirPlay &amp; TV QR work with zero registration!).
-        </span>
-      </div>
-    </section>
+    </details>
   </div>
 
   <script type="module" src="/js/landing-app.js"></script>

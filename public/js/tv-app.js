@@ -1,4 +1,4 @@
-// TV Display, Presentation API Receiver, and Google Cast Custom Web Receiver Runtime
+// TV display, Presentation API receiver, and Google Cast custom Web Receiver runtime.
 import { CAST_NAMESPACE, GAMES, MSG, PHASE, TEAMS } from '../../shared/protocol.js';
 import { GameSocket } from '/js/ws-client.js';
 import { CourtRenderer } from '/js/court-renderer.js';
@@ -9,30 +9,36 @@ import { renderQRToCanvas } from '/js/qr.js';
 const params = new URLSearchParams(window.location.search);
 let targetRoomCode = (params.get('room') || '').toUpperCase().trim();
 const castParam = params.get('cast') || (document.body.dataset.castReceiver ? 'google_cast' : null);
+const isCastReceiver = Boolean(document.body.dataset.castReceiver);
 
-const canvas = document.getElementById('court-canvas');
-const qrCanvas = document.getElementById('qr-canvas');
-const roomCodeDisplay = document.getElementById('room-code-display');
-const joinUrlDisplay = document.getElementById('join-url-display');
-const seatsGrid = document.getElementById('seats-grid');
-const playerCountPill = document.getElementById('player-count-pill');
-const lobbyOverlay = document.getElementById('lobby-overlay');
-const summaryOverlay = document.getElementById('summary-overlay');
-const summaryTitle = document.getElementById('summary-title');
-const summaryScore = document.getElementById('summary-score');
-const summaryStatsHead = document.getElementById('summary-stats-head');
-const summaryStatsBody = document.getElementById('summary-stats-body');
-const castBadge = document.getElementById('cast-badge');
-const modeGroup = document.getElementById('mode-group');
-const formatGroup = document.getElementById('format-group');
-const bowlingFormatGroup = document.getElementById('bowling-format-group');
-const btnSound = document.getElementById('btn-sound');
-const btnFullscreen = document.getElementById('btn-fullscreen');
-const btnLobbyBack = document.getElementById('btn-lobby-back');
-const btnStartMatch = document.getElementById('btn-start-match');
-const btnRematch = document.getElementById('btn-rematch');
-const btnReturnLobby = document.getElementById('btn-return-lobby');
-const btnOpenCtrl = document.getElementById('btn-open-ctrl');
+const $ = (id) => document.getElementById(id);
+const canvas = $('court-canvas');
+const qrCanvas = $('qr-canvas');
+const roomCodeDisplay = $('room-code-display');
+const joinUrlDisplay = $('join-url-display');
+const seatsGrid = $('seats-grid');
+const playerCount = $('player-count-pill');
+const lobbyOverlay = $('lobby-overlay');
+const summaryOverlay = $('summary-overlay');
+const summaryKicker = $('summary-kicker');
+const summaryTitle = $('summary-title');
+const summaryScore = $('summary-score');
+const summaryStatsHead = $('summary-stats-head');
+const summaryStatsBody = $('summary-stats-body');
+const castBadge = $('cast-badge');
+const modeField = $('mode-field');
+const formatField = $('format-field');
+const bowlingFormatField = $('bowling-format-field');
+const btnSound = $('btn-sound');
+const btnFullscreen = $('btn-fullscreen');
+const btnLobbyBack = $('btn-lobby-back');
+const btnStartMatch = $('btn-start-match');
+const btnRematch = $('btn-rematch');
+const btnReturnLobby = $('btn-return-lobby');
+const btnOpenCtrl = $('btn-open-ctrl');
+
+const TEAM_CSS = ['var(--blue)', 'var(--red)'];
+const SEAT_CSS = ['var(--blue)', 'var(--red)', '#4fd1e8', '#ff9a4d'];
 
 let activeGameId = GAMES.TENNIS.id;
 let renderer = new CourtRenderer(canvas, { showEmbeddedHud: true });
@@ -42,6 +48,9 @@ const socket = new GameSocket();
 let serverConfig = { joinBaseUrl: window.location.origin };
 let currentRoom = null;
 let currentGameState = null;
+let lastQrUrl = '';
+let lastSeatsKey = '';
+let summaryShownFor = null;
 
 function ensureRendererForGame(gameId) {
   const normalized = gameId === GAMES.BOWLING.id ? GAMES.BOWLING.id : GAMES.TENNIS.id;
@@ -58,24 +67,46 @@ function ensureRendererForGame(gameId) {
   renderer.start();
 }
 
+// Cap the backing store at 1920px wide: 4K TVs and Chromecasts gain nothing visible
+// from more pixels but pay for every fill.
+const MAX_BACKING_WIDTH = 1920;
 function resizeCanvas() {
-  const dpr = Math.min(window.devicePixelRatio || 1, 2);
-  canvas.width = Math.round(window.innerWidth * dpr);
-  canvas.height = Math.round(window.innerHeight * dpr);
+  const cssW = window.innerWidth;
+  const cssH = window.innerHeight;
+  const dpr = Math.min(window.devicePixelRatio || 1, 2, MAX_BACKING_WIDTH / Math.max(1, cssW));
+  canvas.width = Math.round(cssW * dpr);
+  canvas.height = Math.round(cssH * dpr);
 }
-window.addEventListener('resize', resizeCanvas);
+let resizeRaf = 0;
+window.addEventListener('resize', () => {
+  cancelAnimationFrame(resizeRaf);
+  resizeRaf = requestAnimationFrame(resizeCanvas);
+});
 resizeCanvas();
 renderer.start();
 
-// Request Screen Wake Lock so TV browser doesn't dim during matches
 if (navigator.wakeLock?.request) {
-  navigator.wakeLock.request('screen').catch(() => {});
+  const requestWake = () => navigator.wakeLock.request('screen').catch(() => {});
+  requestWake();
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') requestWake();
+  });
 }
 
-// Unlock audio on first interaction
 window.addEventListener('pointerdown', () => audio.unlock(), { once: true });
 
-// Fetch LAN base URL for scannable QR codes
+// Hide the toolbar and cursor while a match is running and nobody touches the mouse
+let idleTimer = 0;
+function wake() {
+  document.body.classList.remove('tv-idle');
+  clearTimeout(idleTimer);
+  idleTimer = setTimeout(() => {
+    if (currentRoom && currentRoom.phase !== PHASE.LOBBY) document.body.classList.add('tv-idle');
+  }, 3000);
+}
+window.addEventListener('pointermove', wake, { passive: true });
+window.addEventListener('keydown', wake);
+
 fetch('/api/config')
   .then((r) => r.json())
   .then((cfg) => {
@@ -85,102 +116,123 @@ fetch('/api/config')
   .catch(() => {});
 
 function updateQrAndCode(code) {
-  roomCodeDisplay.textContent = code;
+  if (roomCodeDisplay.textContent !== code) roomCodeDisplay.textContent = code;
   renderer.setRoomCode(code);
   const base = serverConfig.joinBaseUrl || window.location.origin;
   const joinUrl = `${base}/play?room=${encodeURIComponent(code)}`;
-  joinUrlDisplay.textContent = joinUrl;
+  if (joinUrl === lastQrUrl) return;
+  lastQrUrl = joinUrl;
+  joinUrlDisplay.textContent = joinUrl.replace(/^https?:\/\//, '');
   try {
     renderQRToCanvas(qrCanvas, joinUrl, { pixelSize: 204 });
   } catch { /* ignore */ }
 }
 
-function renderSeats(room) {
-  const isBowling = room.gameId === GAMES.BOWLING.id;
-  playerCountPill.textContent = `${room.playerCount} / 4 Phones`;
-  seatsGrid.innerHTML = '';
+function escapeHtml(str) {
+  return String(str).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
 
-  const roleLabels = isBowling
-    ? ['Lane • Bowler 1', 'Lane • Bowler 2', 'Lane • Bowler 3', 'Lane • Bowler 4']
-    : ['Blue • Baseline', 'Red • Baseline', 'Blue • Net (Doubles)', 'Red • Net (Doubles)'];
-
-  for (const s of room.seats) {
-    const div = document.createElement('div');
-    div.className = `seat-card team-${s.team === 0 ? 'blue' : 'red'} ${s.isHuman ? 'human' : ''} ${s.active ? '' : 'inactive'}`;
-    div.innerHTML = `
-      <div class="seat-avatar" style="background:${s.color}">
-        ${s.isHuman ? `P${s.seat + 1}` : 'CPU'}
-      </div>
-      <div class="seat-meta">
-        <div class="seat-name">${escapeHtml(s.name)} ${s.isHost ? '👑' : ''}</div>
-        <div class="seat-sub">${roleLabels[s.seat]} ${s.isHuman ? `• ${s.handedness === 'left' ? 'Lefty' : 'Righty'}` : (s.active ? '• Auto CPU' : (isBowling ? '• Open Slot' : '• Singles Off'))}</div>
-      </div>
-    `;
-    seatsGrid.appendChild(div);
-  }
-
-  // Toggle game switcher & game-specific config pills
-  document.querySelectorAll('#game-group .seg-btn').forEach((b) => {
-    b.classList.toggle('active', b.dataset.game === (room.gameId || GAMES.TENNIS.id));
-  });
-  modeGroup?.classList.toggle('hidden', isBowling);
-  formatGroup?.classList.toggle('hidden', isBowling);
-  bowlingFormatGroup?.classList.toggle('hidden', !isBowling);
-
-  document.querySelectorAll('#mode-group .seg-btn').forEach((b) => {
-    b.classList.toggle('active', b.dataset.mode === room.mode);
-  });
-  document.querySelectorAll('#format-group .seg-btn').forEach((b) => {
-    b.classList.toggle('active', b.dataset.format === room.format);
-  });
-  document.querySelectorAll('#bowling-format-group .seg-btn').forEach((b) => {
-    b.classList.toggle('active', b.dataset.format === room.format);
-  });
-  document.querySelectorAll('#diff-group .seg-btn').forEach((b) => {
-    b.classList.toggle('active', b.dataset.diff === room.difficulty);
+function setPressed(selector, predicate) {
+  document.querySelectorAll(selector).forEach((b) => {
+    const on = predicate(b);
+    b.classList.toggle('active', on);
+    b.setAttribute('aria-pressed', String(on));
   });
 }
 
+function seatRole(s, isBowling) {
+  if (isBowling) return `Bowler ${s.seat + 1}`;
+  const team = s.team === TEAMS.BLUE ? 'Blue' : 'Red';
+  return s.role === 'front' ? `${team}, at the net` : `${team}, baseline`;
+}
+
+function seatTag(s, isBowling) {
+  if (s.isHuman) return s.isHost ? 'Host' : 'Phone';
+  if (s.active) return 'Computer';
+  return isBowling ? 'Open' : 'Doubles only';
+}
+
+function renderSeats(room) {
+  const isBowling = room.gameId === GAMES.BOWLING.id;
+  playerCount.innerHTML = `<strong>${room.playerCount}</strong> of 4 phones`;
+
+  const key = JSON.stringify([room.gameId, room.seats.map((s) => [s.name, s.isHuman, s.isHost, s.active, s.team])]);
+  if (key !== lastSeatsKey) {
+    lastSeatsKey = key;
+    seatsGrid.innerHTML = room.seats.map((s) => {
+      const color = isBowling ? SEAT_CSS[s.seat] : TEAM_CSS[s.team];
+      const cls = ['lineup-row', s.isHuman ? 'is-human' : '', s.active || s.isHuman ? '' : 'is-off'].join(' ');
+      return `
+        <div class="${cls}" style="--seat:${color}">
+          <span class="lineup-bar"></span>
+          <span class="lineup-num">${s.seat + 1}</span>
+          <span class="lineup-name">${escapeHtml(s.name)}<span class="lineup-role">${seatRole(s, isBowling)}</span></span>
+          <span class="lineup-tag">${seatTag(s, isBowling)}</span>
+        </div>`;
+    }).join('');
+  }
+
+  const gameId = room.gameId || GAMES.TENNIS.id;
+  setPressed('#game-group .game-tile', (b) => b.dataset.game === gameId);
+  modeField?.classList.toggle('hidden', isBowling);
+  formatField?.classList.toggle('hidden', isBowling);
+  bowlingFormatField?.classList.toggle('hidden', !isBowling);
+
+  setPressed('#mode-group .seg-btn', (b) => b.dataset.mode === room.mode);
+  setPressed('#format-group .seg-btn', (b) => b.dataset.format === room.format);
+  setPressed('#bowling-format-group .seg-btn', (b) => b.dataset.format === room.format);
+  setPressed('#diff-group .seg-btn', (b) => b.dataset.diff === room.difficulty);
+}
+
 function renderSummary(state) {
+  summaryKicker.textContent = 'Match over';
   if (state.gameId === GAMES.BOWLING.id) {
-    const activePlayers = (state.players || []).filter((p) => p.active).sort((a, b) => b.totalScore - a.totalScore);
-    const top = activePlayers[0];
+    const ranked = (state.players || []).filter((p) => p.active).sort((a, b) => b.totalScore - a.totalScore);
+    const top = ranked[0];
     const isTie = (state.winnerSeats?.length || 0) > 1;
-    summaryTitle.textContent = isTie ? 'TIE MATCH!' : `${(top?.name || 'PLAYER 1').toUpperCase()} WINS!`;
-    summaryTitle.style.color = isTie ? '#eab308' : (top?.color || '#2563eb');
-    summaryScore.textContent = `Top Score: ${top?.totalScore ?? 0} pts (${state.totalFrames} Frames)`;
-    if (summaryStatsHead) {
-      summaryStatsHead.innerHTML = '<tr><th>BOWLER</th><th>STRIKES / SPARES</th><th>TOTAL</th></tr>';
-    }
-    summaryStatsBody.innerHTML = activePlayers
-      .map((p) => `<tr><td style="color:${p.color}">${escapeHtml(p.name)}</td><td>${p.strikes} ⚡ / ${p.spares} ✨</td><td>${p.totalScore}</td></tr>`)
-      .join('');
+    summaryTitle.textContent = isTie ? 'It’s a tie' : `${top?.name || 'Player 1'} wins`;
+    summaryScore.textContent = `${top?.totalScore ?? 0} points over ${state.totalFrames} frames`;
+    summaryStatsHead.innerHTML = '<tr><th style="text-align:left">Bowler</th><th>Strikes</th><th>Spares</th><th style="text-align:right">Total</th></tr>';
+    summaryStatsBody.innerHTML = ranked.map((p, i) => `
+      <tr>
+        <td style="text-align:left; color:${SEAT_CSS[p.seat]}">${escapeHtml(p.name)}</td>
+        <td>${p.strikes}</td>
+        <td>${p.spares}</td>
+        <td style="text-align:right" class="${i === 0 ? 'win' : ''}">${p.totalScore}</td>
+      </tr>`).join('');
     return;
   }
 
   const blueWon = state.winnerTeam === TEAMS.BLUE;
-  summaryTitle.textContent = blueWon ? 'BLUE TEAM WINS!' : 'RED TEAM WINS!';
-  summaryTitle.style.color = blueWon ? '#2563eb' : '#dc2626';
-  summaryScore.textContent = `Final Games: ${state.games[0]} – ${state.games[1]}`;
-  if (summaryStatsHead) {
-    summaryStatsHead.innerHTML = '<tr><th style="color:#2563eb;">BLUE</th><th>MATCH STATS</th><th style="color:#dc2626;">RED</th></tr>';
-  }
+  summaryKicker.innerHTML = `Match over <span style="color:${blueWon ? 'var(--blue)' : 'var(--red)'}">●</span>`;
+  summaryTitle.textContent = blueWon ? 'Blue wins' : 'Red wins';
+  summaryScore.textContent = `${state.games[0]}–${state.games[1]} in games`;
+  summaryStatsHead.innerHTML = '<tr><th style="color:var(--blue)">Blue</th><th></th><th style="color:var(--red)">Red</th></tr>';
 
   const st = state.stats;
   const rows = [
     [st.aces[0], 'Aces', st.aces[1]],
     [st.winners[0], 'Winners', st.winners[1]],
-    [st.sweetSpots[0], 'Sweet Spots / Smashes', st.sweetSpots[1]],
-    [`${st.maxMph[0]} MPH`, 'Fastest Shot', `${st.maxMph[1]} MPH`],
-    [st.longestRally, 'Longest Rally', st.longestRally]
+    [st.sweetSpots[0], 'Sweet spots and smashes', st.sweetSpots[1]],
+    [st.maxMph[0], 'Fastest shot (mph)', st.maxMph[1]]
   ];
-  summaryStatsBody.innerHTML = rows
-    .map(([b, label, r]) => `<tr><td>${b}</td><td>${label}</td><td>${r}</td></tr>`)
-    .join('');
+  summaryStatsBody.innerHTML = rows.map(([b, label, r]) => `
+    <tr>
+      <td class="${b > r ? 'win' : ''}">${b}</td>
+      <td>${label}</td>
+      <td class="${r > b ? 'win' : ''}">${r}</td>
+    </tr>`).join('') +
+    `<tr><td colspan="3" style="font-size:0.9375em; font-weight:500; color:var(--chalk-dim)">Longest rally: ${st.longestRally} shots</td></tr>`;
 }
 
-function escapeHtml(str) {
-  return String(str).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+function showOverlay(el, show) {
+  const wasHidden = el.classList.contains('hidden');
+  el.classList.toggle('hidden', !show);
+  if (show && wasHidden) {
+    el.removeAttribute('data-enter');
+    void el.offsetWidth;
+    el.setAttribute('data-enter', '');
+  }
 }
 
 function joinOrCreateDisplayRoom(code, method = castParam) {
@@ -192,19 +244,24 @@ function joinOrCreateDisplayRoom(code, method = castParam) {
       roomCode: targetRoomCode,
       createIfMissing: true,
       castMethod: method || 'tv_browser',
-      deviceName: method === 'google_cast' ? 'Chromecast' : (method === 'presentation' ? 'Cast Display' : 'TV Screen')
+      deviceName: method === 'google_cast' ? 'Chromecast' : (method === 'presentation' ? 'Cast display' : 'TV screen')
     });
   } else {
     socket.send({
       type: MSG.CREATE_ROOM,
       role: 'display',
       castMethod: method || 'tv_browser',
-      deviceName: 'TV Screen'
+      deviceName: 'TV screen'
     });
   }
 }
 
-// --- Socket Handlers ---
+function setCastBadge(text) {
+  castBadge.textContent = text;
+  castBadge.classList.remove('hidden');
+}
+
+// --- Socket handlers ---
 socket.on('open', () => {
   joinOrCreateDisplayRoom(targetRoomCode);
 });
@@ -227,13 +284,17 @@ socket.on(MSG.ROOM_STATE, ({ room }) => {
 
   const inLobby = room.phase === PHASE.LOBBY;
   const isOver = room.phase === PHASE.MATCH_OVER;
-  lobbyOverlay.classList.toggle('hidden', !inLobby);
-  summaryOverlay.classList.toggle('hidden', !isOver);
+  showOverlay(lobbyOverlay, inLobby);
+  if (!isOver) {
+    showOverlay(summaryOverlay, false);
+    summaryShownFor = null;
+  }
   btnLobbyBack?.classList.toggle('hidden', inLobby);
+  if (inLobby) document.body.classList.remove('tv-idle');
+  else wake();
 
   if (room.castState?.active && room.castState.method !== 'tv_browser') {
-    castBadge.classList.remove('hidden');
-    castBadge.textContent = `📺 ${room.castState.deviceName || 'Cast Active'}`;
+    setCastBadge(room.castState.deviceName || 'Casting');
   }
 });
 
@@ -242,78 +303,55 @@ socket.on(MSG.GAME_STATE, ({ state }) => {
   if (state.gameId) ensureRendererForGame(state.gameId);
   renderer.updateState(state);
   if (state.phase === PHASE.MATCH_OVER) {
-    renderSummary(state);
-    summaryOverlay.classList.remove('hidden');
+    // State keeps streaming after the match; build the summary once per result
+    const key = `${state.gameId}:${state.clock > 0 ? Math.floor(state.clock / 3600) : 0}:${state.winnerTeam ?? ''}:${(state.winnerSeats || []).join(',')}`;
+    if (summaryShownFor !== key) {
+      summaryShownFor = key;
+      renderSummary(state);
+    }
+    showOverlay(summaryOverlay, true);
+    document.body.classList.remove('tv-idle');
   }
 });
+
+const AUDIO_EVENTS = {
+  ball_hit: (e) => audio.playHit({ power: e.power, shotType: e.shotType, sweetSpot: e.sweetSpot }),
+  swing_whoosh: (e) => audio.playWhoosh(e.power),
+  ball_bounce: (e) => audio.playBounce(e.inBounds),
+  serve_toss: () => audio.playToss(),
+  net_hit: () => audio.playNetHit(),
+  net_cord: () => audio.playNetHit(),
+  fault: () => audio.playFault(),
+  point_over: () => audio.playFanfare('point'),
+  game_over: () => audio.playFanfare('game'),
+  bowl_throw: () => audio.playBowlRoll(),
+  pin_hit: (e) => audio.playPinCrash(e.intensity),
+  gutter_ball: () => audio.playGutter(),
+  roll_over: (e) => { if (e.isStrike || e.isSpare) audio.playFanfare(e.isStrike ? 'game' : 'point'); },
+  match_over: () => audio.playFanfare('match')
+};
 
 socket.on(MSG.GAME_EVENT, ({ event }) => {
   renderer.handleGameEvent(event);
   if (!event) return;
-  if (event.type === 'ball_hit') {
-    audio.playHit({ power: event.power, shotType: event.shotType, sweetSpot: event.sweetSpot });
-  } else if (event.type === 'swing_whoosh') {
-    audio.playWhoosh(event.power);
-  } else if (event.type === 'ball_bounce') {
-    audio.playBounce(event.inBounds);
-  } else if (event.type === 'serve_toss') {
-    audio.playToss();
-  } else if (event.type === 'net_hit' || event.type === 'net_cord') {
-    audio.playNetHit();
-  } else if (event.type === 'fault') {
-    audio.playFault();
-  } else if (event.type === 'point_over') {
-    audio.playFanfare('point');
-  } else if (event.type === 'game_over') {
-    audio.playFanfare('game');
-  } else if (event.type === 'bowl_throw') {
-    audio.playBowlRoll();
-  } else if (event.type === 'pin_hit') {
-    audio.playPinCrash(event.intensity);
-  } else if (event.type === 'gutter_ball') {
-    audio.playGutter();
-  } else if (event.type === 'roll_over') {
-    if (event.isStrike || event.isSpare) audio.playFanfare(event.isStrike ? 'game' : 'point');
-  } else if (event.type === 'match_over') {
-    audio.playFanfare('match');
-  }
+  AUDIO_EVENTS[event.type]?.(event);
 });
 
-// --- UI Controls on TV ---
-document.querySelectorAll('#game-group .seg-btn').forEach((btn) => {
-  btn.addEventListener('click', () => {
-    audio.unlock();
-    socket.send({ type: MSG.SELECT_GAME, gameId: btn.dataset.game });
+// --- TV controls ---
+function bindGroup(selector, toMessage) {
+  document.querySelectorAll(selector).forEach((btn) => {
+    btn.addEventListener('click', () => {
+      audio.unlock();
+      socket.send(toMessage(btn));
+    });
   });
-});
+}
 
-document.querySelectorAll('#mode-group .seg-btn').forEach((btn) => {
-  btn.addEventListener('click', () => {
-    audio.unlock();
-    socket.send({ type: MSG.UPDATE_CONFIG, config: { mode: btn.dataset.mode } });
-  });
-});
-
-document.querySelectorAll('#format-group .seg-btn').forEach((btn) => {
-  btn.addEventListener('click', () => {
-    audio.unlock();
-    socket.send({ type: MSG.UPDATE_CONFIG, config: { format: btn.dataset.format } });
-  });
-});
-
-document.querySelectorAll('#bowling-format-group .seg-btn').forEach((btn) => {
-  btn.addEventListener('click', () => {
-    audio.unlock();
-    socket.send({ type: MSG.UPDATE_CONFIG, config: { format: btn.dataset.format } });
-  });
-});
-
-document.querySelectorAll('#diff-group .seg-btn').forEach((btn) => {
-  btn.addEventListener('click', () => {
-    audio.unlock();
-    socket.send({ type: MSG.UPDATE_CONFIG, config: { difficulty: btn.dataset.diff } });
-  });
-});
+bindGroup('#game-group .game-tile', (b) => ({ type: MSG.SELECT_GAME, gameId: b.dataset.game }));
+bindGroup('#mode-group .seg-btn', (b) => ({ type: MSG.UPDATE_CONFIG, config: { mode: b.dataset.mode } }));
+bindGroup('#format-group .seg-btn', (b) => ({ type: MSG.UPDATE_CONFIG, config: { format: b.dataset.format } }));
+bindGroup('#bowling-format-group .seg-btn', (b) => ({ type: MSG.UPDATE_CONFIG, config: { format: b.dataset.format } }));
+bindGroup('#diff-group .seg-btn', (b) => ({ type: MSG.UPDATE_CONFIG, config: { difficulty: b.dataset.diff } }));
 
 btnStartMatch?.addEventListener('click', () => {
   audio.unlock();
@@ -325,18 +363,21 @@ btnRematch?.addEventListener('click', () => {
   socket.send({ type: MSG.REMATCH });
 });
 
-btnReturnLobby?.addEventListener('click', () => {
-  socket.send({ type: MSG.RETURN_LOBBY });
-});
+btnReturnLobby?.addEventListener('click', () => socket.send({ type: MSG.RETURN_LOBBY }));
+btnLobbyBack?.addEventListener('click', () => socket.send({ type: MSG.RETURN_LOBBY }));
 
-btnLobbyBack?.addEventListener('click', () => {
-  socket.send({ type: MSG.RETURN_LOBBY });
-});
+function setIcon(btn, id) {
+  btn?.querySelector('use')?.setAttribute('href', `/icons.svg#${id}`);
+}
 
 btnSound?.addEventListener('click', () => {
   audio.unlock();
   audio.setMuted(!audio.muted);
-  btnSound.textContent = audio.muted ? '🔇 Muted' : '🔊 Audio On';
+  setIcon(btnSound, audio.muted ? 'i-volume-off' : 'i-volume');
+  const label = audio.muted ? 'Unmute' : 'Mute';
+  btnSound.title = label;
+  btnSound.setAttribute('aria-label', label);
+  btnSound.setAttribute('aria-pressed', String(audio.muted));
 });
 
 btnFullscreen?.addEventListener('click', () => {
@@ -349,15 +390,14 @@ btnFullscreen?.addEventListener('click', () => {
 
 btnOpenCtrl?.addEventListener('click', () => {
   if (!targetRoomCode) return;
-  window.open(`/controller.html?room=${encodeURIComponent(targetRoomCode)}`, '_blank', 'width=430,height=820');
+  window.open(`/controller.html?room=${encodeURIComponent(targetRoomCode)}`, '_blank', 'width=430,height=860');
 });
 
-// --- W3C Presentation API Receiver Integration ---
+// --- W3C Presentation API receiver ---
 if (navigator.presentation?.receiver) {
   navigator.presentation.receiver.connectionList.then((list) => {
     const bindConn = (conn) => {
-      castBadge.classList.remove('hidden');
-      castBadge.textContent = '📺 Cast Connected';
+      setCastBadge('Casting');
       conn.addEventListener('message', (evt) => {
         try {
           const data = JSON.parse(evt.data);
@@ -372,9 +412,10 @@ if (navigator.presentation?.receiver) {
   }).catch(() => {});
 }
 
-// --- Google Cast Custom Web Receiver SDK Integration ---
+// --- Google Cast custom Web Receiver ---
+let castReceiverStarted = false;
 function initGoogleCastReceiverIfPresent() {
-  if (!window.cast?.framework?.CastReceiverContext) return;
+  if (castReceiverStarted || !window.cast?.framework?.CastReceiverContext) return;
   try {
     const castCtx = window.cast.framework.CastReceiverContext.getInstance();
     castCtx.addCustomMessageListener(CAST_NAMESPACE, (evt) => {
@@ -384,14 +425,14 @@ function initGoogleCastReceiverIfPresent() {
       }
     });
     const opts = new window.cast.framework.CastReceiverOptions();
-    opts.disableIdleTimeout = true; // Keep court open during long multiplayer rallies!
+    opts.disableIdleTimeout = true;
     castCtx.start(opts);
-    castBadge.classList.remove('hidden');
-    castBadge.textContent = '📺 Chromecast Ready';
-  } catch { /* ignore if not on Cast hardware */ }
+    castReceiverStarted = true;
+    setCastBadge('Chromecast');
+  } catch { /* not on Cast hardware */ }
 }
 
-if (document.body.dataset.castReceiver) {
+if (isCastReceiver) {
   window.addEventListener('load', () => {
     initGoogleCastReceiverIfPresent();
     setTimeout(initGoogleCastReceiverIfPresent, 1200);

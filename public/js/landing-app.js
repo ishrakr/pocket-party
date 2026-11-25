@@ -1,30 +1,35 @@
-// Landing Hub Runtime: creates rooms, detects Cast/AirPlay capabilities, and routes players cleanly.
+// Landing page: creates rooms, routes players, and shows casting/network setup.
 import { CastBridge } from '/js/cast-bridge.js';
 
 const btnCastAndPlay = document.getElementById('btn-cast-and-play');
 const btnAirplayAndPlay = document.getElementById('btn-airplay-and-play');
 const joinForm = document.getElementById('join-form');
 const inputRoomCode = document.getElementById('input-room-code');
+const joinError = document.getElementById('join-error');
 const capList = document.getElementById('cap-list');
 const lanHint = document.getElementById('lan-hint');
-const btnToggleCastCfg = document.getElementById('btn-toggle-cast-cfg');
-const castCfgBox = document.getElementById('cast-cfg-box');
+const tvUrlInline = document.getElementById('tv-url-inline');
 const inputCastAppId = document.getElementById('input-cast-appid');
 const btnSaveAppId = document.getElementById('btn-save-appid');
+const appIdStatus = document.getElementById('appid-status');
 
 const bridge = new CastBridge();
+
+function escapeHtml(str) {
+  return String(str).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
 
 function renderCapabilities() {
   const c = bridge.capabilities;
   const items = [
-    { label: c.googleCast ? 'Google Cast SDK Ready' : 'Google Cast SDK (Optional App ID)', ready: c.googleCast },
-    { label: c.presentation ? 'Chrome Cast / Presentation API Ready' : 'Presentation API (Chrome)', ready: c.presentation },
-    { label: c.airplay ? 'Apple AirPlay Picker Ready' : 'Apple AirPlay (Safari iOS/macOS)', ready: c.airplay },
-    { label: c.remotePlayback ? 'Remote Playback Ready' : 'Remote Playback API', ready: c.remotePlayback },
-    { label: 'DeviceMotionEvent' in window ? 'Motion Sensors API Supported' : 'Desktop Swipe / Keyboard Mode', ready: 'DeviceMotionEvent' in window }
+    { label: 'Chrome casting', ready: c.presentation },
+    { label: 'Chromecast app', ready: c.googleCast },
+    { label: 'AirPlay', ready: c.airplay },
+    { label: 'Remote playback', ready: c.remotePlayback },
+    { label: 'Motion sensors', ready: 'DeviceMotionEvent' in window }
   ];
   capList.innerHTML = items
-    .map((it) => `<span class="cap-chip ${it.ready ? 'ready' : ''}">${it.ready ? '✓' : '•'} ${it.label}</span>`)
+    .map((it) => `<li class="${it.ready ? 'ready' : ''}"><span class="dot"></span>${it.label}<span class="sr-only">${it.ready ? ' available' : ' not available'}</span></li>`)
     .join('');
 }
 
@@ -38,15 +43,18 @@ fetch('/api/config')
     }
     inputCastAppId.value = bridge.castAppId || cfg.castAppId || '';
 
-    const isPublicOrSecure = Boolean(cfg.isPublicDeployment || cfg.secure || window.location.protocol === 'https:');
-    if (isPublicOrSecure && cfg.isPublicDeployment) {
-      lanHint.innerHTML = `Phone Join URL: <strong>${cfg.joinBaseUrl || window.location.origin}</strong>${cfg.secure || window.location.protocol === 'https:' ? ' (HTTPS Secure ✓)' : ''}`;
-    } else {
-      const lanList = cfg.lanIPs?.length
-        ? cfg.lanIPs.map((ip) => `${cfg.httpsEnabled ? 'https' : 'http'}://${ip}:${cfg.httpsEnabled ? cfg.httpsPort : cfg.httpPort}`).join('  •  ')
-        : window.location.origin;
+    const base = cfg.joinBaseUrl || window.location.origin;
+    tvUrlInline.textContent = `${base.replace(/^https?:\/\//, '')}/tv`;
 
-      lanHint.innerHTML = `Phone Join URL: <strong>${lanList}</strong>${!cfg.httpsEnabled && window.location.protocol !== 'https:' ? ' — Tip: start with <code>npm run start:https</code> for iOS/Android motion sensors over Wi-Fi.' : ' (HTTPS Secure ✓)'}`;
+    if (cfg.isPublicDeployment) {
+      lanHint.innerHTML = `<span class="url">${escapeHtml(base)}</span>`;
+    } else {
+      const proto = cfg.httpsEnabled ? 'https' : 'http';
+      const p = cfg.httpsEnabled ? cfg.httpsPort : cfg.httpPort;
+      const urls = cfg.lanIPs?.length ? cfg.lanIPs.map((ip) => `${proto}://${ip}:${p}`) : [window.location.origin];
+      const secure = cfg.httpsEnabled || window.location.protocol === 'https:';
+      lanHint.innerHTML = urls.map((u) => `<span class="url">${escapeHtml(u)}</span>`).join('<br>') +
+        (secure ? '' : '<br>Phones need HTTPS for motion sensors on Wi-Fi. Start the server with <span class="url">npm run start:https</span>.');
     }
     renderCapabilities();
   })
@@ -60,40 +68,48 @@ async function createRoomCode() {
   return data.roomCode;
 }
 
-btnCastAndPlay.addEventListener('click', async () => {
-  btnCastAndPlay.disabled = true;
+async function hostAndGo(btn, query) {
+  btn.disabled = true;
   try {
     const code = await createRoomCode();
-    window.location.href = `/controller.html?room=${encodeURIComponent(code)}&cast=auto`;
+    window.location.href = `/controller.html?room=${encodeURIComponent(code)}&${query}`;
   } catch {
-    window.location.href = '/controller.html?cast=auto';
+    window.location.href = `/controller.html?${query}`;
   }
+}
+
+btnCastAndPlay.addEventListener('click', () => hostAndGo(btnCastAndPlay, 'cast=auto'));
+btnAirplayAndPlay.addEventListener('click', () => hostAndGo(btnAirplayAndPlay, 'airplay=1'));
+
+inputRoomCode.addEventListener('input', () => {
+  const cleaned = inputRoomCode.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+  if (cleaned !== inputRoomCode.value) inputRoomCode.value = cleaned;
+  joinError.classList.add('hidden');
 });
 
-btnAirplayAndPlay.addEventListener('click', async () => {
-  btnAirplayAndPlay.disabled = true;
-  try {
-    const code = await createRoomCode();
-    window.location.href = `/controller.html?room=${encodeURIComponent(code)}&airplay=1`;
-  } catch {
-    window.location.href = '/controller.html?airplay=1';
-  }
-});
-
-joinForm.addEventListener('submit', (e) => {
+joinForm.addEventListener('submit', async (e) => {
   e.preventDefault();
   const code = inputRoomCode.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
-  if (!code) return;
+  if (code.length !== 4) {
+    joinError.textContent = 'Room codes have four characters. Check the code on the TV.';
+    joinError.classList.remove('hidden');
+    return;
+  }
+  try {
+    const res = await fetch(`/api/rooms/${encodeURIComponent(code)}`);
+    if (res.status === 404) {
+      joinError.textContent = `No room ${code} is open. Check the code on the TV.`;
+      joinError.classList.remove('hidden');
+      return;
+    }
+  } catch { /* offline check failed: try joining anyway */ }
   window.location.href = `/controller.html?room=${encodeURIComponent(code)}`;
 });
 
-btnToggleCastCfg.addEventListener('click', () => {
-  castCfgBox.classList.toggle('hidden');
-});
-
 btnSaveAppId.addEventListener('click', async () => {
-  bridge.setCastAppId(inputCastAppId.value.trim());
+  const id = inputCastAppId.value.trim();
+  bridge.setCastAppId(id);
   await bridge.initGoogleCast();
   renderCapabilities();
-  alert(inputCastAppId.value.trim() ? 'Cast App ID saved! Reloading Cast SDK.' : 'Cast App ID cleared.');
+  appIdStatus.textContent = id ? `Saved app ID ${id}. The Cast SDK will use it on this device.` : 'App ID cleared.';
 });

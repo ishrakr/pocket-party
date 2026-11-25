@@ -3,161 +3,157 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>PocketParty — Motion Controller</title>
+  <meta name="theme-color" content="#0F2350">
+  <title>PocketParty controller</title>
+  <link rel="preload" href="/fonts/archivo.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/css/styles.css">
 </head>
 <body class="ctrl-body">
-  <!-- Compact Top Header -->
   <header class="ctrl-header">
-    <div class="ctrl-seat-badge">
-      <span id="conn-dot" class="ctrl-dot"></span>
-      <span id="seat-label">Connecting...</span>
-      <span id="room-pill" class="pill pill-gold" style="padding:3px 9px; font-size:0.74rem;">----</span>
+    <div class="ctrl-id">
+      <span id="seat-badge" class="seat-badge">–</span>
+      <div class="ctrl-id-text">
+        <div id="seat-label" class="ctrl-name">Connecting…</div>
+        <div id="conn-meta" class="ctrl-meta" data-conn="off">
+          <span class="dot"></span>
+          <span id="seat-role"></span>
+          <span>Room <span id="room-pill">····</span></span>
+          <span id="ctrl-rtt"></span>
+        </div>
+      </div>
     </div>
-    <div style="display:flex; gap:6px; align-items:center;">
-      <button id="btn-cast-tv" class="btn btn-primary btn-sm" style="padding:7px 12px;">📺 Cast / AirPlay</button>
-      <button id="btn-ctrl-settings" class="btn btn-dark btn-sm" style="padding:7px 10px;" title="Settings">⚙️</button>
-    </div>
+    <button id="btn-cast-tv" class="btn btn-court ctrl-cast-btn">
+      <svg class="icon" aria-hidden="true"><use href="/icons.svg#i-cast"/></svg>
+      <span id="cast-btn-label">Cast</span>
+    </button>
+    <button id="btn-ctrl-settings" class="icon-btn" title="Settings" aria-label="Settings">
+      <svg class="icon" aria-hidden="true"><use href="/icons.svg#i-sliders"/></svg>
+    </button>
   </header>
 
   <main class="ctrl-main">
-    <!-- Motion Sensor Permission / Status Banner -->
-    <div id="sensor-banner" class="ctrl-banner">
-      <span id="sensor-banner-text">📱 Tap to enable motion swing sensors!</span>
-      <button id="btn-enable-sensors" class="btn btn-gold btn-sm">Enable Motion</button>
+    <div id="sensor-banner" class="banner">
+      <p id="sensor-banner-text">Turn on motion to swing your phone like a racket.</p>
+      <button id="btn-enable-sensors" class="btn btn-ball">Turn on motion</button>
     </div>
 
-    <!-- AirPlay Live Stream Preview (Visible only when AirPlay Stream Mode is active) -->
     <div id="airplay-pip" class="airplay-pip hidden">
       <video id="airplay-video" x-webkit-airplay="allow" playsinline autoplay muted></video>
-      <div style="position:absolute; top:8px; left:8px; right:8px; display:flex; justify-content:space-between; align-items:center;">
-        <span class="pill pill-dark" style="font-size:0.7rem;">📡 AirPlay Court Feed</span>
-        <div style="display:flex; gap:6px;">
-          <button id="btn-airplay-picker-inline" class="btn btn-gold btn-sm" style="padding:4px 10px; font-size:0.74rem;">AirPlay Picker</button>
-          <button id="btn-hide-pip" class="btn btn-dark btn-sm" style="padding:4px 8px; font-size:0.74rem;">Hide</button>
+      <div class="airplay-pip-bar">
+        <span>AirPlay feed</span>
+        <div style="display:flex; gap:0.375rem;">
+          <button id="btn-airplay-picker-inline" class="btn btn-ball btn-sm">Choose TV</button>
+          <button id="btn-hide-pip" class="btn btn-court btn-sm">Hide</button>
         </div>
       </div>
     </div>
 
-    <!-- LOBBY VIEW (Controller acts as TV lobby remote!) -->
-    <section id="ctrl-lobby-view" class="ctrl-lobby-panel">
-      <div>
-        <label>Select Game</label>
-        <div class="seg-group seg-group-dark" id="ctrl-game-group" style="width:100%; justify-content:space-between;">
-          <button class="seg-btn active" data-game="tennis" style="flex:1;">🎾 Motion Tennis</button>
-          <button class="seg-btn" data-game="bowling" style="flex:1;">🎳 Party Bowling</button>
+    <!-- Lobby -->
+    <section id="ctrl-lobby-view" class="ctrl-lobby">
+      <div class="ctrl-section">
+        <span class="label">Game</span>
+        <div class="ctrl-games" id="ctrl-game-group">
+          <button class="game-tile active" data-game="tennis" aria-pressed="true">
+            <svg aria-hidden="true"><use href="/icons.svg#g-tennis"/></svg>
+            <span class="game-tile-name">Tennis</span>
+          </button>
+          <button class="game-tile" data-game="bowling" aria-pressed="false">
+            <svg aria-hidden="true"><use href="/icons.svg#g-bowling"/></svg>
+            <span class="game-tile-name">Bowling</span>
+          </button>
         </div>
       </div>
 
-      <div style="display:grid; grid-template-columns:1fr auto; gap:10px; align-items:end;">
-        <div>
-          <label for="input-player-name">Your Name</label>
-          <input id="input-player-name" class="text-input" maxlength="14" placeholder="Player 1" style="padding:9px 12px; font-size:0.95rem;">
+      <div class="you-row">
+        <div class="field">
+          <label class="label" for="input-player-name">Your name</label>
+          <input id="input-player-name" class="input" maxlength="14" placeholder="Player 1" autocomplete="nickname" enterkeyhint="done">
         </div>
-        <div>
-          <label>Hand</label>
-          <div class="seg-group seg-group-dark" id="hand-group">
+        <div class="field">
+          <span class="label">Hand</span>
+          <div class="seg" id="hand-group">
             <button class="seg-btn active" data-hand="right">Right</button>
             <button class="seg-btn" data-hand="left">Left</button>
           </div>
         </div>
       </div>
 
-      <div>
-        <label>Choose Your Seat</label>
-        <div id="seat-picker-grid" class="seat-picker-grid"></div>
+      <div class="ctrl-section">
+        <span class="label">Seat</span>
+        <div id="seat-picker-grid" class="seat-grid"></div>
       </div>
 
-      <div id="ctrl-tennis-config-row" style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
-        <div>
-          <label>Mode</label>
-          <select id="select-mode" class="text-input" style="padding:9px 10px; font-size:0.9rem;">
-            <option value="singles">1v1 Singles</option>
-            <option value="doubles">2v2 Doubles</option>
-          </select>
-        </div>
-        <div>
-          <label>Match Length</label>
-          <select id="select-format" class="text-input" style="padding:9px 10px; font-size:0.9rem;">
-            <option value="one_game">1 Game (Quick Match)</option>
-            <option value="best_of_3">Best of 3 Games</option>
-            <option value="best_of_5">Best of 5 Games</option>
-          </select>
+      <div class="ctrl-section" id="ctrl-mode-row">
+        <span class="label">Players</span>
+        <div class="seg" id="ctrl-mode-group">
+          <button class="seg-btn active" data-mode="singles">Singles</button>
+          <button class="seg-btn" data-mode="doubles">Doubles</button>
         </div>
       </div>
 
-      <div id="ctrl-bowling-config-row" class="hidden">
-        <label>Frames</label>
-        <select id="select-bowling-format" class="text-input" style="padding:9px 10px; font-size:0.9rem;">
-          <option value="quick_3">3 Frames (Sprint)</option>
-          <option value="classic_5" selected>5 Frames (Party)</option>
-          <option value="full_10">10 Frames (Regulation)</option>
-        </select>
-      </div>
-
-      <div>
-        <label>CPU Skill Level</label>
-        <div class="seg-group seg-group-dark" id="ctrl-diff-group" style="width:100%; justify-content:space-between;">
-          <button class="seg-btn" data-diff="rookie" style="flex:1;">Rookie</button>
-          <button class="seg-btn active" data-diff="pro" style="flex:1;">Pro</button>
-          <button class="seg-btn" data-diff="champion" style="flex:1;">Champion</button>
+      <div class="ctrl-section" id="ctrl-format-row">
+        <span class="label">Length</span>
+        <div class="seg" id="ctrl-format-group">
+          <button class="seg-btn active" data-format="one_game">1 game</button>
+          <button class="seg-btn" data-format="best_of_3">Best of 3</button>
+          <button class="seg-btn" data-format="best_of_5">Best of 5</button>
         </div>
       </div>
 
-      <button id="btn-ctrl-start" class="btn btn-green btn-block" style="padding:15px; font-size:1.1rem;">
-        🎮 Start Match on TV
-      </button>
+      <div class="ctrl-section hidden" id="ctrl-bowling-format-row">
+        <span class="label">Frames</span>
+        <div class="seg" id="ctrl-bowling-format-group">
+          <button class="seg-btn" data-format="quick_3">3</button>
+          <button class="seg-btn active" data-format="classic_5">5</button>
+          <button class="seg-btn" data-format="full_10">10</button>
+        </div>
+      </div>
 
-      <div id="ctrl-lobby-tip" style="font-size:0.78rem; color:#94a3b8; text-align:center;">
-        Tip: Hold your phone securely like a tennis racket! Flick up to toss serves, swing forward to strike.
+      <div class="ctrl-section">
+        <span class="label">Computer players</span>
+        <div class="seg" id="ctrl-diff-group">
+          <button class="seg-btn" data-diff="rookie">Easy</button>
+          <button class="seg-btn active" data-diff="pro">Medium</button>
+          <button class="seg-btn" data-diff="champion">Hard</button>
+        </div>
+      </div>
+
+      <div class="ctrl-start">
+        <button id="btn-ctrl-start" class="btn btn-ball btn-lg btn-block">Start match</button>
+        <p id="ctrl-lobby-tip" class="hint">Hold the phone like a racket handle. Flick up to serve, swing to hit.</p>
       </div>
     </section>
 
-    <!-- MATCH PLAY VIEW (Live Motion Controller!) -->
-    <section id="ctrl-play-view" class="hidden" style="flex:1; display:flex; flex-direction:column; gap:10px; min-height:0;">
-      <div id="ctrl-tennis-strip" class="ctrl-score-strip">
-        <div class="ctrl-team-score" style="color:#60a5fa;">
-          <span>BLUE</span>
-          <span id="ctrl-games-blue" class="pill pill-blue" style="color:#93c5fd;">0</span>
-          <span id="ctrl-pts-blue">0</span>
+    <!-- Playing -->
+    <section id="ctrl-play-view" class="ctrl-play hidden">
+      <div id="ctrl-tennis-strip" class="scoreline">
+        <div class="score-team" style="--team:var(--blue)">
+          <span class="team-code">BLU</span>
+          <span id="ctrl-games-blue" class="games">0</span>
+          <span id="ctrl-pts-blue" class="pts">0</span>
         </div>
-        <div id="ctrl-rtt" style="font-size:0.74rem; color:#94a3b8; font-weight:800;">LIVE</div>
-        <div class="ctrl-team-score" style="color:#f87171;">
-          <span id="ctrl-pts-red">0</span>
-          <span id="ctrl-games-red" class="pill pill-red" style="color:#fca5a5;">0</span>
-          <span>RED</span>
-        </div>
-      </div>
-
-      <div id="ctrl-bowling-strip" class="ctrl-score-strip hidden">
-        <div class="ctrl-team-score" style="color:#38bdf8; font-size:0.95rem;">
-          <span id="ctrl-bowl-frame">FRAME 1/5</span>
-        </div>
-        <div id="ctrl-bowl-turn" style="font-size:0.82rem; color:#facc15; font-weight:900;">YOUR TURN</div>
-        <div class="ctrl-team-score" style="color:#ffffff; font-size:0.95rem;">
-          <span>SCORE</span>
-          <span id="ctrl-bowl-score" class="pill pill-gold" style="color:#0f172a; background:#facc15;">0</span>
+        <span class="score-mid">games · pts</span>
+        <div class="score-team right" style="--team:var(--red)">
+          <span class="team-code">RED</span>
+          <span id="ctrl-games-red" class="games">0</span>
+          <span id="ctrl-pts-red" class="pts">0</span>
         </div>
       </div>
 
-      <div id="ctrl-prompt" class="ctrl-prompt">READY TO PLAY</div>
+      <div id="ctrl-bowling-strip" class="scoreline bowl-line hidden">
+        <span id="ctrl-bowl-frame" class="frame">Frame 1/5</span>
+        <span id="ctrl-bowl-turn" class="turn">Your turn</span>
+        <span id="ctrl-bowl-score" class="total">0</span>
+      </div>
 
-      <!-- Main Motion / Touch Swipe Pad -->
-      <div id="racket-pad" class="racket-pad">
-        <div id="shot-feedback" class="shot-feedback hidden">104 MPH • TOPSPIN!</div>
+      <div id="ctrl-prompt" class="prompt" aria-live="polite">Get ready</div>
 
-        <!-- Animated SVG Tennis Racket mirroring phone gyro & swipes -->
-        <svg id="racket-svg" class="racket-visual" viewBox="0 0 120 175" aria-hidden="true">
-          <defs>
-            <linearGradient id="rimGrad" x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0%" stop-color="#38bdf8"/>
-              <stop offset="100%" stop-color="#2563eb"/>
-            </linearGradient>
-          </defs>
-          <!-- Racket head -->
-          <ellipse cx="60" cy="56" rx="42" ry="50" fill="rgba(255,255,255,0.12)" stroke="url(#rimGrad)" stroke-width="7"/>
-          <!-- Strings -->
-          <g stroke="rgba(255,255,255,0.45)" stroke-width="1.5">
+      <div id="racket-pad" class="pad">
+        <div id="shot-feedback" class="shot-feedback hidden"></div>
+
+        <svg id="racket-svg" class="pad-visual" viewBox="0 0 120 175" aria-hidden="true">
+          <g stroke="rgba(244,247,251,0.38)" stroke-width="1.6">
             <line x1="36" y1="16" x2="36" y2="96"/>
             <line x1="48" y1="9" x2="48" y2="103"/>
             <line x1="60" y1="7" x2="60" y2="105"/>
@@ -167,139 +163,138 @@
             <line x1="19" y1="56" x2="101" y2="56"/>
             <line x1="24" y1="76" x2="96" y2="76"/>
           </g>
-          <!-- Throat & Grip -->
-          <path d="M44 102 L55 128 L65 128 L76 102" fill="none" stroke="#94a3b8" stroke-width="6" stroke-linejoin="round"/>
-          <rect x="53" y="126" width="14" height="44" rx="5" fill="#facc15" stroke="#0f172a" stroke-width="2"/>
+          <ellipse cx="60" cy="56" rx="42" ry="50" fill="none" stroke="#F4F7FB" stroke-width="7"/>
+          <path d="M44 102 L56 128 L64 128 L76 102" fill="none" stroke="#F4F7FB" stroke-width="6" stroke-linejoin="round"/>
+          <rect x="53" y="126" width="14" height="44" rx="3" fill="#0F2350"/>
+          <path d="M53 136h14M53 146h14M53 156h14" stroke="#DCF542" stroke-width="2"/>
         </svg>
 
-        <!-- Animated SVG Bowling Ball for Party Bowling -->
-        <svg id="bowling-ball-svg" class="racket-visual hidden" viewBox="0 0 140 140" aria-hidden="true">
-          <defs>
-            <radialGradient id="ballGrad" cx="35%" cy="30%" r="65%">
-              <stop offset="0%" stop-color="#60a5fa"/>
-              <stop offset="55%" stop-color="#2563eb"/>
-              <stop offset="100%" stop-color="#0f172a"/>
-            </radialGradient>
-          </defs>
-          <circle cx="70" cy="70" r="56" fill="url(#ballGrad)" stroke="rgba(255,255,255,0.28)" stroke-width="3"/>
-          <circle cx="84" cy="46" r="7" fill="#090d16"/>
-          <circle cx="100" cy="58" r="7" fill="#090d16"/>
-          <circle cx="87" cy="67" r="6" fill="#090d16"/>
+        <svg id="bowling-ball-svg" class="pad-visual ball-visual hidden" viewBox="0 0 140 140" aria-hidden="true">
+          <circle cx="70" cy="70" r="56" fill="var(--seat, #5B9BFF)"/>
+          <path d="M28 52a48 48 0 0 1 30-32" fill="none" stroke="rgba(255,255,255,0.35)" stroke-width="6" stroke-linecap="round"/>
+          <circle cx="84" cy="46" r="7" fill="#0A1838"/>
+          <circle cx="100" cy="58" r="7" fill="#0A1838"/>
+          <circle cx="87" cy="67" r="6" fill="#0A1838"/>
         </svg>
 
-        <div id="pad-hint" style="font-size:0.84rem; color:#cbd5e1; font-weight:700; text-align:center; padding:0 16px;">
-          Swing your phone OR swipe across this pad!
-        </div>
+        <p id="pad-hint" class="pad-hint">Swing your phone, or swipe across the court.</p>
 
-        <div class="swing-meter-wrap">
-          <div style="display:flex; justify-content:space-between; font-size:0.72rem; color:#94a3b8; font-weight:800;">
-            <span>SWING POWER</span>
-            <span id="sensor-mode-label">TOUCH / KEYBOARD READY</span>
+        <div class="meter">
+          <div class="meter-top">
+            <span>Swing power</span>
+            <span id="sensor-mode-label">Touch</span>
           </div>
-          <div class="swing-meter-bar">
-            <div id="swing-meter-fill" class="swing-meter-fill"></div>
+          <div class="meter-bar"><div id="swing-meter-fill" class="meter-fill"></div></div>
+        </div>
+      </div>
+
+      <div class="ctrl-tools">
+        <div class="seg" id="shot-mod-group" role="group" aria-label="Shot type">
+          <button class="seg-btn active" data-mod="auto">Auto</button>
+          <button class="seg-btn" data-mod="topspin">Topspin</button>
+          <button class="seg-btn" data-mod="slice">Slice</button>
+          <button class="seg-btn" data-mod="lob">Lob</button>
+        </div>
+
+        <div id="bowling-controls-group" class="ctrl-tools hidden">
+          <div class="aim-row">
+            <button id="btn-bowl-left" class="icon-btn" type="button" aria-label="Move left">
+              <svg class="icon" aria-hidden="true"><use href="/icons.svg#i-chevron-left"/></svg>
+            </button>
+            <button id="btn-bowl-center" class="btn btn-court" type="button">Center</button>
+            <button id="btn-bowl-right" class="icon-btn" type="button" aria-label="Move right">
+              <svg class="icon" aria-hidden="true"><use href="/icons.svg#i-chevron-right"/></svg>
+            </button>
+          </div>
+          <div class="seg" id="bowling-hook-group" role="group" aria-label="Hook">
+            <button class="seg-btn" data-hook="-0.75" type="button">Hook left</button>
+            <button class="seg-btn active" data-hook="0" type="button">Straight</button>
+            <button class="seg-btn" data-hook="0.75" type="button">Hook right</button>
           </div>
         </div>
       </div>
 
-      <!-- Quick Shot Modifiers (Tennis spin / lob) -->
-      <div class="shot-modifiers" id="shot-mod-group">
-        <button class="mod-btn active" data-mod="auto">⚡ Auto</button>
-        <button class="mod-btn" data-mod="topspin">🔥 Topspin</button>
-        <button class="mod-btn" data-mod="slice">❄️ Slice</button>
-        <button class="mod-btn" data-mod="lob">🎈 Lob</button>
-      </div>
-
-      <!-- Bowling Aim & Hook Controls -->
-      <div id="bowling-controls-group" class="hidden" style="display:flex; flex-direction:column; gap:8px; flex-shrink:0;">
-        <div class="shot-modifiers" style="grid-template-columns:1fr 1fr 1fr;">
-          <button id="btn-bowl-left" class="mod-btn" type="button">◀ Move Left</button>
-          <button id="btn-bowl-center" class="mod-btn" type="button">🎯 Center</button>
-          <button id="btn-bowl-right" class="mod-btn" type="button">Move Right ▶</button>
-        </div>
-        <div class="shot-modifiers" id="bowling-hook-group" style="grid-template-columns:repeat(3, 1fr);">
-          <button class="mod-btn" data-hook="-0.75" type="button">↶ Hook Left</button>
-          <button class="mod-btn active" data-hook="0" type="button">⬆️ Straight</button>
-          <button class="mod-btn" data-hook="0.75" type="button">Hook Right ↷</button>
-        </div>
-      </div>
-
-      <!-- Quick Action Row: Toss/Swing Tap + Calibrate -->
-      <div class="ctrl-action-row">
-        <button id="btn-tap-action" class="btn btn-gold" style="padding:13px;">🎾 Toss / Swing</button>
-        <button id="btn-calibrate" class="btn btn-dark" style="padding:13px;">🎯 Calibrate</button>
+      <div class="action-row">
+        <button id="btn-tap-action" class="btn btn-ball btn-lg">Swing</button>
+        <button id="btn-calibrate" class="icon-btn" title="Recenter motion" aria-label="Recenter motion">
+          <svg class="icon" aria-hidden="true"><use href="/icons.svg#i-target"/></svg>
+        </button>
       </div>
     </section>
 
-    <!-- MATCH OVER VIEW -->
-    <section id="ctrl-over-view" class="ctrl-lobby-panel hidden" style="text-align:center; margin-top:16px;">
-      <div style="font-size:2.6rem;">🏆</div>
-      <h2 id="ctrl-over-title" style="margin:0; font-size:1.6rem;">MATCH COMPLETE!</h2>
-      <div id="ctrl-over-sub" style="color:#cbd5e1; font-weight:700;"></div>
-      <button id="btn-ctrl-rematch" class="btn btn-green btn-block">🔁 Play Rematch</button>
-      <button id="btn-ctrl-lobby" class="btn btn-dark btn-block">Back to Lobby</button>
+    <!-- Match over -->
+    <section id="ctrl-over-view" class="ctrl-over hidden">
+      <h2 id="ctrl-over-title" class="display">Good game</h2>
+      <p id="ctrl-over-sub"></p>
+      <button id="btn-ctrl-rematch" class="btn btn-ball btn-lg">Rematch</button>
+      <button id="btn-ctrl-lobby" class="btn btn-line">Back to lobby</button>
     </section>
   </main>
 
-  <!-- Cast & AirPlay Modal Sheet -->
-  <div id="cast-modal" class="modal-backdrop hidden">
-    <div class="modal-sheet">
-      <div style="display:flex; justify-content:space-between; align-items:center;">
-        <h3>📺 Cast to TV</h3>
-        <button id="btn-close-cast-modal" class="btn btn-ghost btn-sm">✕</button>
+  <dialog id="cast-modal" class="sheet" aria-labelledby="cast-title">
+    <div class="sheet-body">
+      <div class="sheet-head">
+        <h2 id="cast-title">Show on a TV</h2>
+        <button id="btn-close-cast-modal" class="icon-btn" aria-label="Close">
+          <svg class="icon" aria-hidden="true"><use href="/icons.svg#i-close"/></svg>
+        </button>
       </div>
-      <p style="margin:0; color:#475569; font-size:0.9rem;">
-        Send the 3D court to your TV while this phone stays your wireless motion racket!
-      </p>
-
-      <div id="cast-status-line" class="pill pill-blue" style="justify-content:center; padding:8px;">
-        Ready to Cast • Room <span id="cast-modal-room">----</span>
+      <div id="cast-status-line" class="status-line"><span class="dot"></span><span id="cast-status-text">Not casting</span></div>
+      <div class="option-list">
+        <button id="btn-cast-google" class="option">
+          <svg class="icon" aria-hidden="true"><use href="/icons.svg#i-cast"/></svg>
+          <span class="option-title">Chromecast or Google TV</span>
+          <span class="option-sub">Works in Chrome on Android and desktop</span>
+        </button>
+        <button id="btn-cast-airplay" class="option">
+          <svg class="icon" aria-hidden="true"><use href="/icons.svg#i-airplay"/></svg>
+          <span class="option-title">AirPlay</span>
+          <span class="option-sub">Streams from this phone to an Apple TV</span>
+        </button>
+        <button id="btn-cast-window" class="option">
+          <svg class="icon" aria-hidden="true"><use href="/icons.svg#i-window"/></svg>
+          <span class="option-title">Open in a new window</span>
+          <span class="option-sub">Drag it to a TV or second screen</span>
+        </button>
       </div>
-
-      <button id="btn-cast-google" class="btn btn-primary btn-block">
-        📡 Google Cast / Chromecast
-      </button>
-      <button id="btn-cast-airplay" class="btn btn-gold btn-block">
-         AirPlay / Remote Playback Stream
-      </button>
-      <button id="btn-cast-window" class="btn btn-ghost btn-block">
-        🖥️ Open TV Screen Window
-      </button>
-
-      <div style="background:#f1f5f9; padding:12px; border-radius:14px; font-size:0.8rem; color:#334155;">
-        <strong>Smart TV or Apple TV Mirroring?</strong><br>
-        Open <code id="cast-tv-url" style="font-weight:800; color:#1d4ed8; word-break:break-all;"></code> on your TV or Mac/Laptop and keep playing right here!
-      </div>
+      <p class="note">On a smart TV or laptop, open <span id="cast-tv-url" class="url"></span> in its browser. This phone stays the controller.</p>
     </div>
-  </div>
+  </dialog>
 
-  <!-- Settings Modal Sheet -->
-  <div id="settings-modal" class="modal-backdrop hidden">
-    <div class="modal-sheet">
-      <div style="display:flex; justify-content:space-between; align-items:center;">
-        <h3>⚙️ Controller Settings</h3>
-        <button id="btn-close-settings" class="btn btn-ghost btn-sm">✕</button>
+  <dialog id="settings-modal" class="sheet" aria-labelledby="settings-title">
+    <div class="sheet-body">
+      <div class="sheet-head">
+        <h2 id="settings-title">Settings</h2>
+        <button id="btn-close-settings" class="icon-btn" aria-label="Close">
+          <svg class="icon" aria-hidden="true"><use href="/icons.svg#i-close"/></svg>
+        </button>
       </div>
-      <div>
-        <label style="font-weight:800; font-size:0.85rem; display:block; margin-bottom:6px;">
-          Motion Swing Sensitivity: <span id="sens-val">1.0×</span>
-        </label>
-        <input id="input-sensitivity" type="range" min="0.6" max="1.45" step="0.05" value="1.0" style="width:100%;">
+      <div class="field">
+        <label class="label" for="input-sensitivity">Swing sensitivity <span id="sens-val" style="color:var(--chalk)">1.00×</span></label>
+        <input id="input-sensitivity" class="range" type="range" min="0.6" max="1.45" step="0.05" value="1.0">
       </div>
-      <label style="display:flex; align-items:center; gap:10px; font-weight:700; cursor:pointer;">
+      <label class="check-row">
         <input id="chk-phone-sound" type="checkbox" checked>
-        Controller phone speaker sound (whoosh &amp; hit)
+        Play hit sounds on this phone
       </label>
-      <div style="font-size:0.8rem; color:#475569; background:#f8fafc; padding:10px 12px; border-radius:12px;">
-        <strong>Desktop Keyboard Controls:</strong><br>
-        <code>Space</code> = Toss / Swing &nbsp;•&nbsp; <code>A / D</code> = Aim Left/Right &nbsp;•&nbsp; <code>W</code> = Lob &nbsp;•&nbsp; <code>S</code> = Slice &nbsp;•&nbsp; <code>Shift</code> = Smash
+      <div class="note">
+        <div class="label" style="color:var(--chalk)">Keyboard</div>
+        <dl class="keys">
+          <dt>Space</dt><dd>Serve or swing</dd>
+          <dt>A / D</dt><dd>Aim left or right</dd>
+          <dt>W</dt><dd>Lob</dd>
+          <dt>S</dt><dd>Slice</dd>
+          <dt>Shift</dt><dd>Smash, or a harder bowl</dd>
+        </dl>
       </div>
-      <div style="display:flex; gap:10px;">
-        <button id="btn-modal-lobby" class="btn btn-ghost btn-block">Return to Lobby</button>
-        <a href="/" class="btn btn-red btn-block">Leave Room</a>
+      <div class="sheet-actions">
+        <button id="btn-modal-lobby" class="btn btn-line">Back to lobby</button>
+        <a href="/" class="btn btn-danger">Leave room</a>
       </div>
     </div>
-  </div>
+  </dialog>
+
+  <div id="toast" class="toast is-hidden" role="status" aria-live="polite"></div>
 
   <script type="module" src="/js/controller-app.js"></script>
 </body>

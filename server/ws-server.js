@@ -20,7 +20,9 @@ export class WebSocketClient extends EventEmitter {
     socket.on('data', (chunk) => this._onData(chunk));
     socket.on('close', () => this._handleClose(1006, ''));
     socket.on('error', (err) => {
-      this.emit('error', err);
+      // An unlistened 'error' event would crash the whole process; a phone
+      // dropping off Wi-Fi (ECONNRESET) must only close this one client.
+      if (this.listenerCount('error') > 0) this.emit('error', err);
       this._handleClose(1006, err.message);
     });
   }

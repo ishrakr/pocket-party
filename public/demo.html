@@ -3,12 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PocketParty — Instant Split-Screen Demo</title>
+  <meta name="theme-color" content="#0F2350">
+  <title>PocketParty split-screen demo</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/css/styles.css">
 </head>
 <body class="split-demo-body">
-  <iframe id="tv-frame" title="TV Court Display"></iframe>
-  <iframe id="ctrl-frame" title="Phone Motion Controller"></iframe>
+  <iframe id="tv-frame" title="TV view"></iframe>
+  <iframe id="ctrl-frame" title="Phone controller"></iframe>
 
   <script type="module">
     const res = await fetch('/api/rooms', { method: 'POST' });

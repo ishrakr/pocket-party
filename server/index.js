@@ -3,6 +3,8 @@ import http from 'node:http';
 import https from 'node:https';
 import fs from 'node:fs';
 import path from 'node:path';
+import crypto from 'node:crypto';
+import zlib from 'node:zlib';
 import { fileURLToPath } from 'node:url';
 import { WebSocketServer } from './ws-server.js';
 import { RoomManager } from './room-manager.js';
@@ -23,8 +25,55 @@ const MIME_TYPES = {
   '.svg': 'image/svg+xml',
   '.png': 'image/png',
   '.ico': 'image/x-icon',
+  '.woff2': 'font/woff2',
   '.webmanifest': 'application/manifest+json'
 };
+
+const COMPRESSIBLE = new Set(['.html', '.css', '.js', '.mjs', '.json', '.svg', '.webmanifest']);
+
+// Static files are small and few: keep them in memory, pre-compressed, and
+// revalidate against the file's mtime so edits show up without a restart.
+const staticCache = new Map();
+
+function loadStaticAsset(fullPath, cb) {
+  fs.stat(fullPath, (statErr, stat) => {
+    if (statErr || !stat.isFile()) {
+      cb(statErr || new Error('not a file'));
+      return;
+    }
+    const cached = staticCache.get(fullPath);
+    if (cached && cached.mtimeMs === stat.mtimeMs && cached.size === stat.size) {
+      cb(null, cached);
+      return;
+    }
+    fs.readFile(fullPath, (readErr, raw) => {
+      if (readErr) {
+        cb(readErr);
+        return;
+      }
+      const ext = path.extname(fullPath).toLowerCase();
+      const asset = {
+        mtimeMs: stat.mtimeMs,
+        size: stat.size,
+        type: MIME_TYPES[ext] || 'application/octet-stream',
+        // Fonts never change in place; everything else revalidates via ETag.
+        cacheControl: ext === '.woff2' ? 'public, max-age=2592000' : 'no-cache',
+        etag: `"${crypto.createHash('sha1').update(raw).digest('base64url').slice(0, 20)}"`,
+        raw,
+        gzip: null,
+        br: null
+      };
+      if (COMPRESSIBLE.has(ext) && raw.length > 1024) {
+        asset.gzip = zlib.gzipSync(raw, { level: 9 });
+        asset.br = zlib.brotliCompressSync(raw, {
+          params: { [zlib.constants.BROTLI_PARAM_QUALITY]: 11, [zlib.constants.BROTLI_PARAM_SIZE_HINT]: raw.length }
+        });
+      }
+      staticCache.set(fullPath, asset);
+      cb(null, asset);
+    });
+  });
+}
 
 export function createAppServer(options = {}) {
   const port = Number(options.port ?? process.env.PORT ?? 3000);
@@ -156,22 +205,35 @@ export function createAppServer(options = {}) {
       return;
     }
 
-    fs.readFile(fullPath, (err, content) => {
+    loadStaticAsset(fullPath, (err, asset) => {
       if (err) {
         res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
         res.end('Not Found');
         return;
       }
-      const ext = path.extname(fullPath).toLowerCase();
-      res.writeHead(200, {
-        'Content-Type': MIME_TYPES[ext] || 'application/octet-stream',
-        'Cache-Control': 'no-cache'
-      });
-      if (req.method === 'HEAD') {
+      const headers = {
+        'Content-Type': asset.type,
+        'Cache-Control': asset.cacheControl,
+        ETag: asset.etag,
+        Vary: 'Accept-Encoding'
+      };
+      if (req.headers['if-none-match'] === asset.etag) {
+        res.writeHead(304, headers);
         res.end();
         return;
       }
-      res.end(content);
+      const accept = String(req.headers['accept-encoding'] || '');
+      let body = asset.raw;
+      if (asset.br && /\bbr\b/.test(accept)) {
+        body = asset.br;
+        headers['Content-Encoding'] = 'br';
+      } else if (asset.gzip && /\bgzip\b/.test(accept)) {
+        body = asset.gzip;
+        headers['Content-Encoding'] = 'gzip';
+      }
+      headers['Content-Length'] = body.length;
+      res.writeHead(200, headers);
+      res.end(req.method === 'HEAD' ? undefined : body);
     });
   };
 

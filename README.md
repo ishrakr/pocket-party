@@ -35,7 +35,7 @@ A **100% web-based motion-controlled party tennis game** built for **Google Cast
 npm start
 ```
 Open `http://localhost:3000` in your browser!
-- Click **Instant Split-Screen Demo (TV + Phone)** to play immediately on one computer.
+- Click **Open split-screen demo** to play immediately on one computer.
 - Or open `http://localhost:3000/tv` on your big screen and connect phones via `http://<your-lan-ip>:3000/play?room=XXXX`.
 
 ### 2. Run with HTTPS over LAN Wi-Fi (Recommended for Real iPhone / Android Motion Sensors!)
@@ -45,15 +45,15 @@ npm run start:https
 ```
 The server prints your exact LAN HTTPS URL (e.g. `https://192.168.1.42:3443`).
 1. Open that HTTPS URL on your phone (accept the local self-signed dev certificate once).
-2. Tap **Cast to TV & Be P1 Controller** (or **AirPlay Stream & Be P1 Controller**).
-3. Tap **Enable Motion** when prompted by iOS/Android, hold your phone pointing at the TV, tap **Calibrate**, and swing!
+2. Tap **Cast to TV** (or **Use AirPlay instead**).
+3. Tap **Turn on motion** when prompted by iOS/Android, hold your phone pointing at the TV, tap the recenter (target) button, and swing!
 4. Friends scan the **QR Code** on the TV to join as Player 2, 3, or 4!
 
 ### 3. Optional: Native Google Cast Custom Web Receiver App ID
 Presentation API, AirPlay, and TV Browser modes work out of the box with no setup. If you also want native Chromecast app launching via the Google Cast SDK:
 1. Host this server at a public HTTPS URL (or register your local testing Chromecast device in the [Google Cast SDK Developer Console](https://cast.google.com/publish/)).
 2. Register a Custom Web Receiver pointing to `https://<your-domain>/receiver.html`.
-3. Pass your Cast App ID via environment variable or enter it on the home page under **Configure Google Cast App ID**:
+3. Pass your Cast App ID via environment variable or enter it on the home page under **Casting and network setup**:
    ```bash
    CAST_APP_ID=YOUR_APP_ID npm run start:https
    ```

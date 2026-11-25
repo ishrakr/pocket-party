@@ -2,109 +2,117 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>PocketParty — TV Screen</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#0F2350">
+  <title>PocketParty TV</title>
+  <link rel="preload" href="/fonts/archivo.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/css/styles.css">
 </head>
 <body class="tv-body">
-  <canvas id="court-canvas"></canvas>
+  <canvas id="court-canvas" aria-label="Game view"></canvas>
 
   <div class="tv-toolbar">
-    <span id="cast-badge" class="pill pill-dark hidden">📺 Cast Connected</span>
-    <button id="btn-sound" class="btn btn-dark btn-sm" title="Toggle Audio">🔊 Audio On</button>
-    <button id="btn-fullscreen" class="btn btn-dark btn-sm" title="Fullscreen">⛶ Fullscreen</button>
-    <button id="btn-lobby-back" class="btn btn-dark btn-sm hidden">← Lobby</button>
+    <button id="btn-lobby-back" class="icon-btn hidden" title="Back to lobby" aria-label="Back to lobby">
+      <svg class="icon" aria-hidden="true"><use href="/icons.svg#i-back"/></svg>
+    </button>
+    <button id="btn-sound" class="icon-btn" title="Mute" aria-label="Mute" aria-pressed="false">
+      <svg class="icon" aria-hidden="true"><use href="/icons.svg#i-volume"/></svg>
+    </button>
+    <button id="btn-fullscreen" class="icon-btn" title="Full screen" aria-label="Full screen">
+      <svg class="icon" aria-hidden="true"><use href="/icons.svg#i-maximize"/></svg>
+    </button>
+    <span id="cast-badge" class="cast-chip hidden"></span>
   </div>
 
-  <!-- Lobby Overlay -->
   <div id="lobby-overlay" class="tv-overlay">
-    <div class="tv-lobby-card">
-      <div class="tv-qr-pane">
-        <span class="pill pill-gold">Scan to Play</span>
+    <div class="lobby">
+      <aside class="lobby-join">
+        <div class="label">Scan to join</div>
         <div class="qr-frame">
-          <canvas id="qr-canvas" width="210" height="210"></canvas>
+          <canvas id="qr-canvas" width="210" height="210" aria-label="QR code to join this room"></canvas>
         </div>
-        <div style="font-size:0.8rem; text-transform:uppercase; letter-spacing:0.12em; color:#94a3b8; font-weight:800;">
-          Room Code
-        </div>
-        <div id="room-code-display" class="room-code-big">----</div>
-        <div id="join-url-display" class="join-url-hint">Connecting...</div>
-        <button id="btn-open-ctrl" class="btn btn-gold btn-sm btn-block" style="margin-top:4px;">
-          📱 Open Controller Tab
-        </button>
-      </div>
+        <div class="label">or enter code</div>
+        <div id="room-code-display" class="room-code">····</div>
+        <div id="join-url-display" class="join-url">Connecting…</div>
+        <button id="btn-open-ctrl" class="link-btn" type="button">Open a controller on this computer</button>
+      </aside>
 
-      <div class="tv-roster-pane">
-        <div class="tv-roster-header">
-          <div>
-            <h1>🎉 PocketParty</h1>
-            <div style="color:#475569; font-weight:700; font-size:0.92rem;">
-              Pick a game and connect 1–4 phones as wireless motion controllers!
+      <section class="lobby-main">
+        <header class="lobby-head">
+          <h1 class="display">Pick a game</h1>
+          <div id="player-count-pill" class="lobby-count"><strong>0</strong> of 4 phones</div>
+        </header>
+
+        <div class="game-picker" id="game-group">
+          <button class="game-tile active" data-game="tennis" aria-pressed="true">
+            <svg aria-hidden="true"><use href="/icons.svg#g-tennis"/></svg>
+            <span class="game-tile-name">Tennis</span>
+            <span class="game-tile-sub">Singles or doubles</span>
+          </button>
+          <button class="game-tile" data-game="bowling" aria-pressed="false">
+            <svg aria-hidden="true"><use href="/icons.svg#g-bowling"/></svg>
+            <span class="game-tile-name">Bowling</span>
+            <span class="game-tile-sub">Take turns, 1 to 4 bowlers</span>
+          </button>
+        </div>
+
+        <div id="seats-grid" class="lineup"></div>
+
+        <div class="settings-row">
+          <div class="field" id="mode-field">
+            <span class="label">Players</span>
+            <div class="seg" id="mode-group">
+              <button class="seg-btn active" data-mode="singles">Singles</button>
+              <button class="seg-btn" data-mode="doubles">Doubles</button>
             </div>
           </div>
-          <span id="player-count-pill" class="pill pill-blue">0 / 4 Phones</span>
-        </div>
-
-        <div class="seg-group" id="game-group" style="align-self:flex-start;">
-          <button class="seg-btn active" data-game="tennis">🎾 Motion Tennis</button>
-          <button class="seg-btn" data-game="bowling">🎳 Party Bowling</button>
-        </div>
-
-        <div id="seats-grid" class="seats-grid"></div>
-
-        <div class="tv-config-bar">
-          <div class="seg-group" id="mode-group">
-            <button class="seg-btn active" data-mode="singles">1v1 Singles</button>
-            <button class="seg-btn" data-mode="doubles">2v2 Doubles</button>
+          <div class="field" id="format-field">
+            <span class="label">Length</span>
+            <div class="seg" id="format-group">
+              <button class="seg-btn active" data-format="one_game">1 game</button>
+              <button class="seg-btn" data-format="best_of_3">Best of 3</button>
+              <button class="seg-btn" data-format="best_of_5">Best of 5</button>
+            </div>
           </div>
-          <div class="seg-group" id="format-group">
-            <button class="seg-btn active" data-format="one_game">1 Game</button>
-            <button class="seg-btn" data-format="best_of_3">Best of 3</button>
-            <button class="seg-btn" data-format="best_of_5">Best of 5</button>
+          <div class="field hidden" id="bowling-format-field">
+            <span class="label">Frames</span>
+            <div class="seg" id="bowling-format-group">
+              <button class="seg-btn" data-format="quick_3">3</button>
+              <button class="seg-btn active" data-format="classic_5">5</button>
+              <button class="seg-btn" data-format="full_10">10</button>
+            </div>
           </div>
-          <div class="seg-group hidden" id="bowling-format-group">
-            <button class="seg-btn" data-format="quick_3">3 Frames</button>
-            <button class="seg-btn active" data-format="classic_5">5 Frames</button>
-            <button class="seg-btn" data-format="full_10">10 Frames</button>
-          </div>
-          <div class="seg-group" id="diff-group">
-            <button class="seg-btn" data-diff="rookie">Rookie</button>
-            <button class="seg-btn active" data-diff="pro">Pro</button>
-            <button class="seg-btn" data-diff="champion">Champion</button>
+          <div class="field">
+            <span class="label">Computer players</span>
+            <div class="seg" id="diff-group">
+              <button class="seg-btn" data-diff="rookie">Easy</button>
+              <button class="seg-btn active" data-diff="pro">Medium</button>
+              <button class="seg-btn" data-diff="champion">Hard</button>
+            </div>
           </div>
         </div>
 
-        <div style="display:flex; gap:12px; align-items:center; margin-top:auto;">
-          <button id="btn-start-match" class="btn btn-green" style="flex:1; font-size:1.15rem; padding:16px;">
-            ▶ Start Match
-          </button>
-          <a href="/" class="btn btn-ghost">Home</a>
-        </div>
-      </div>
+        <footer class="lobby-foot">
+          <button id="btn-start-match" class="btn btn-ball">Start match</button>
+          <span class="hint">Anyone in the room can start from their phone too.</span>
+        </footer>
+      </section>
     </div>
   </div>
 
-  <!-- Match Summary Overlay -->
   <div id="summary-overlay" class="tv-overlay hidden">
-    <div class="summary-card">
-      <div style="font-size:3rem; line-height:1;">🏆</div>
-      <h1 id="summary-title" style="margin:8px 0 4px; font-size:2.1rem; font-weight:900;">BLUE TEAM WINS!</h1>
-      <div id="summary-score" style="font-size:1.25rem; font-weight:800; color:#475569;">Final Games: 2 – 0</div>
-
+    <div class="summary">
+      <div id="summary-kicker" class="summary-kicker">Match over</div>
+      <h1 id="summary-title" class="display">Blue wins</h1>
+      <div id="summary-score" class="summary-score"></div>
       <table class="stats-table">
-        <thead id="summary-stats-head">
-          <tr>
-            <th style="color:#2563eb;">BLUE</th>
-            <th>MATCH STATS</th>
-            <th style="color:#dc2626;">RED</th>
-          </tr>
-        </thead>
+        <thead id="summary-stats-head"></thead>
         <tbody id="summary-stats-body"></tbody>
       </table>
-
-      <div style="display:flex; gap:12px; justify-content:center;">
-        <button id="btn-rematch" class="btn btn-green" style="min-width:170px;">🔁 Rematch</button>
-        <button id="btn-return-lobby" class="btn btn-ghost" style="min-width:170px;">Change Players</button>
+      <div class="summary-actions">
+        <button id="btn-rematch" class="btn btn-ball">Rematch</button>
+        <button id="btn-return-lobby" class="btn btn-line">Change players</button>
       </div>
     </div>
   </div>

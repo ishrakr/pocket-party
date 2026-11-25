@@ -1,4 +1,4 @@
-// Phone Motion Controller Runtime + AirPlay Live Court/Alley Streamer + Google Cast / Presentation Sender
+// Phone motion controller runtime + AirPlay live court/alley streamer + Google Cast / Presentation sender
 import { BOWLING_PHASE, GAMES, MSG, PHASE, TEAMS, clamp } from '../../shared/protocol.js';
 import { GameSocket } from '/js/ws-client.js';
 import { PhoneMotionController } from '/js/motion-controller.js';
@@ -12,80 +12,94 @@ let roomCode = (params.get('room') || '').toUpperCase().trim();
 const autoCastMode = params.get('cast') || '';
 const autoAirplay = params.get('airplay') === '1';
 
-// DOM refs
-const connDot = document.getElementById('conn-dot');
-const seatLabel = document.getElementById('seat-label');
-const roomPill = document.getElementById('room-pill');
-const sensorBanner = document.getElementById('sensor-banner');
-const sensorBannerText = document.getElementById('sensor-banner-text');
-const btnEnableSensors = document.getElementById('btn-enable-sensors');
-const sensorModeLabel = document.getElementById('sensor-mode-label');
+const $ = (id) => document.getElementById(id);
 
-const ctrlLobbyView = document.getElementById('ctrl-lobby-view');
-const ctrlPlayView = document.getElementById('ctrl-play-view');
-const ctrlOverView = document.getElementById('ctrl-over-view');
-const ctrlOverTitle = document.getElementById('ctrl-over-title');
-const ctrlOverSub = document.getElementById('ctrl-over-sub');
+// Header
+const seatBadge = $('seat-badge');
+const seatLabel = $('seat-label');
+const seatRole = $('seat-role');
+const connMeta = $('conn-meta');
+const roomPill = $('room-pill');
+const ctrlRtt = $('ctrl-rtt');
+const btnCastTv = $('btn-cast-tv');
+const castBtnLabel = $('cast-btn-label');
 
-const inputPlayerName = document.getElementById('input-player-name');
-const seatPickerGrid = document.getElementById('seat-picker-grid');
-const ctrlTennisConfigRow = document.getElementById('ctrl-tennis-config-row');
-const ctrlBowlingConfigRow = document.getElementById('ctrl-bowling-config-row');
-const selectMode = document.getElementById('select-mode');
-const selectFormat = document.getElementById('select-format');
-const selectBowlingFormat = document.getElementById('select-bowling-format');
-const ctrlLobbyTip = document.getElementById('ctrl-lobby-tip');
-const btnCtrlStart = document.getElementById('btn-ctrl-start');
-const btnCtrlRematch = document.getElementById('btn-ctrl-rematch');
-const btnCtrlLobby = document.getElementById('btn-ctrl-lobby');
+// Sensor banner
+const sensorBanner = $('sensor-banner');
+const sensorBannerText = $('sensor-banner-text');
+const btnEnableSensors = $('btn-enable-sensors');
+const sensorModeLabel = $('sensor-mode-label');
 
-const ctrlTennisStrip = document.getElementById('ctrl-tennis-strip');
-const ctrlBowlingStrip = document.getElementById('ctrl-bowling-strip');
-const ctrlBowlFrame = document.getElementById('ctrl-bowl-frame');
-const ctrlBowlTurn = document.getElementById('ctrl-bowl-turn');
-const ctrlBowlScore = document.getElementById('ctrl-bowl-score');
-const ctrlGamesBlue = document.getElementById('ctrl-games-blue');
-const ctrlPtsBlue = document.getElementById('ctrl-pts-blue');
-const ctrlGamesRed = document.getElementById('ctrl-games-red');
-const ctrlPtsRed = document.getElementById('ctrl-pts-red');
-const ctrlRtt = document.getElementById('ctrl-rtt');
-const ctrlPrompt = document.getElementById('ctrl-prompt');
-const racketPad = document.getElementById('racket-pad');
-const racketSvg = document.getElementById('racket-svg');
-const bowlingBallSvg = document.getElementById('bowling-ball-svg');
-const padHint = document.getElementById('pad-hint');
-const shotFeedback = document.getElementById('shot-feedback');
-const shotModGroup = document.getElementById('shot-mod-group');
-const bowlingControlsGroup = document.getElementById('bowling-controls-group');
-const btnBowlLeft = document.getElementById('btn-bowl-left');
-const btnBowlCenter = document.getElementById('btn-bowl-center');
-const btnBowlRight = document.getElementById('btn-bowl-right');
-const swingMeterFill = document.getElementById('swing-meter-fill');
-const btnTapAction = document.getElementById('btn-tap-action');
-const btnCalibrate = document.getElementById('btn-calibrate');
+// Views
+const ctrlLobbyView = $('ctrl-lobby-view');
+const ctrlPlayView = $('ctrl-play-view');
+const ctrlOverView = $('ctrl-over-view');
+const ctrlOverTitle = $('ctrl-over-title');
+const ctrlOverSub = $('ctrl-over-sub');
 
-// AirPlay / Cast DOM
-const btnCastTv = document.getElementById('btn-cast-tv');
-const castModal = document.getElementById('cast-modal');
-const btnCloseCastModal = document.getElementById('btn-close-cast-modal');
-const castStatusLine = document.getElementById('cast-status-line');
-const castTvUrl = document.getElementById('cast-tv-url');
-const btnCastGoogle = document.getElementById('btn-cast-google');
-const btnCastAirplay = document.getElementById('btn-cast-airplay');
-const btnCastWindow = document.getElementById('btn-cast-window');
-const airplayPip = document.getElementById('airplay-pip');
-const airplayVideo = document.getElementById('airplay-video');
-const btnAirplayPickerInline = document.getElementById('btn-airplay-picker-inline');
-const btnHidePip = document.getElementById('btn-hide-pip');
+// Lobby
+const inputPlayerName = $('input-player-name');
+const seatPickerGrid = $('seat-picker-grid');
+const ctrlModeRow = $('ctrl-mode-row');
+const ctrlFormatRow = $('ctrl-format-row');
+const ctrlBowlingFormatRow = $('ctrl-bowling-format-row');
+const ctrlLobbyTip = $('ctrl-lobby-tip');
+const btnCtrlStart = $('btn-ctrl-start');
+const btnCtrlRematch = $('btn-ctrl-rematch');
+const btnCtrlLobby = $('btn-ctrl-lobby');
 
-// Settings DOM
-const btnCtrlSettings = document.getElementById('btn-ctrl-settings');
-const settingsModal = document.getElementById('settings-modal');
-const btnCloseSettings = document.getElementById('btn-close-settings');
-const inputSensitivity = document.getElementById('input-sensitivity');
-const sensVal = document.getElementById('sens-val');
-const chkPhoneSound = document.getElementById('chk-phone-sound');
-const btnModalLobby = document.getElementById('btn-modal-lobby');
+// Play
+const ctrlTennisStrip = $('ctrl-tennis-strip');
+const ctrlBowlingStrip = $('ctrl-bowling-strip');
+const ctrlBowlFrame = $('ctrl-bowl-frame');
+const ctrlBowlTurn = $('ctrl-bowl-turn');
+const ctrlBowlScore = $('ctrl-bowl-score');
+const ctrlGamesBlue = $('ctrl-games-blue');
+const ctrlPtsBlue = $('ctrl-pts-blue');
+const ctrlGamesRed = $('ctrl-games-red');
+const ctrlPtsRed = $('ctrl-pts-red');
+const ctrlPrompt = $('ctrl-prompt');
+const racketPad = $('racket-pad');
+const racketSvg = $('racket-svg');
+const bowlingBallSvg = $('bowling-ball-svg');
+const padHint = $('pad-hint');
+const shotFeedback = $('shot-feedback');
+const shotModGroup = $('shot-mod-group');
+const bowlingControlsGroup = $('bowling-controls-group');
+const btnBowlLeft = $('btn-bowl-left');
+const btnBowlCenter = $('btn-bowl-center');
+const btnBowlRight = $('btn-bowl-right');
+const swingMeterFill = $('swing-meter-fill');
+const btnTapAction = $('btn-tap-action');
+const btnCalibrate = $('btn-calibrate');
+
+// Cast sheet
+const castModal = $('cast-modal');
+const btnCloseCastModal = $('btn-close-cast-modal');
+const castStatusLine = $('cast-status-line');
+const castStatusText = $('cast-status-text');
+const castTvUrl = $('cast-tv-url');
+const btnCastGoogle = $('btn-cast-google');
+const btnCastAirplay = $('btn-cast-airplay');
+const btnCastWindow = $('btn-cast-window');
+const airplayPip = $('airplay-pip');
+const airplayVideo = $('airplay-video');
+const btnAirplayPickerInline = $('btn-airplay-picker-inline');
+const btnHidePip = $('btn-hide-pip');
+
+// Settings sheet
+const btnCtrlSettings = $('btn-ctrl-settings');
+const settingsModal = $('settings-modal');
+const btnCloseSettings = $('btn-close-settings');
+const inputSensitivity = $('input-sensitivity');
+const sensVal = $('sens-val');
+const chkPhoneSound = $('chk-phone-sound');
+const btnModalLobby = $('btn-modal-lobby');
+
+const toastEl = $('toast');
+
+const TEAM_CSS = ['var(--blue)', 'var(--red)'];
+const SEAT_CSS = ['var(--blue)', 'var(--red)', '#4fd1e8', '#ff9a4d'];
 
 // State
 let activeGameId = GAMES.TENNIS.id;
@@ -94,19 +108,72 @@ let mySeat = 0;
 let hasJoinedOnce = false;
 let myHand = localStorage.getItem('pocketparty_hand') || 'right';
 let myName = localStorage.getItem('pocketparty_name') || '';
-let shotMod = 'auto'; // 'auto' | 'topspin' | 'slice' | 'lob'
+let shotMod = 'auto';
 let bowlHook = 0;
 let bowlLaneX = 0.08;
 let currentRoom = null;
 let currentState = null;
-let phoneSoundEnabled = true;
+let phoneSoundEnabled = localStorage.getItem('pocketparty_sound') !== 'off';
 let airplayRenderer = null;
 let airplayRendererGameId = GAMES.TENNIS.id;
 let airplayCanvas = null;
 let feedbackTimer = null;
+let toastTimer = null;
+
+chkPhoneSound.checked = phoneSoundEnabled;
+const savedSens = Number(localStorage.getItem('pocketparty_sens'));
+if (savedSens) {
+  inputSensitivity.value = String(savedSens);
+  sensVal.textContent = `${savedSens.toFixed(2)}×`;
+}
 
 function escapeHtml(str) {
   return String(str).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+// Game state arrives ~30 times a second; only touch the DOM when something changed.
+function setText(el, text) {
+  if (el && el.textContent !== text) el.textContent = text;
+}
+
+function setPrompt(text, tone = '') {
+  setText(ctrlPrompt, text);
+  if (ctrlPrompt.dataset.tone !== tone) ctrlPrompt.dataset.tone = tone;
+}
+
+function setPressed(selector, predicate) {
+  document.querySelectorAll(selector).forEach((b) => {
+    const on = predicate(b);
+    b.classList.toggle('active', on);
+    b.setAttribute('aria-pressed', String(on));
+  });
+}
+
+function toast(message, tone = '') {
+  toastEl.textContent = message;
+  toastEl.dataset.tone = tone;
+  toastEl.classList.remove('is-hidden');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toastEl.classList.add('is-hidden'), tone === 'error' ? 5000 : 3000);
+}
+
+function openSheet(dlg) {
+  if (dlg.open) return;
+  if (typeof dlg.showModal === 'function') dlg.showModal();
+  else dlg.setAttribute('open', '');
+}
+
+function closeSheet(dlg) {
+  if (!dlg.open) return;
+  if (typeof dlg.close === 'function') dlg.close();
+  else dlg.removeAttribute('open');
+}
+
+for (const dlg of [castModal, settingsModal]) {
+  // Tap on the dimmed backdrop closes the sheet
+  dlg.addEventListener('click', (e) => {
+    if (e.target === dlg) closeSheet(dlg);
+  });
 }
 
 const audio = new TennisAudio();
@@ -124,7 +191,6 @@ const castBridge = new CastBridge({
   }
 });
 
-// Load server Cast App ID config
 fetch('/api/config')
   .then((r) => r.json())
   .then((cfg) => {
@@ -136,12 +202,15 @@ fetch('/api/config')
   })
   .catch(() => {});
 
-// Screen Wake Lock so phone never sleeps mid-match
 if (navigator.wakeLock?.request) {
-  navigator.wakeLock.request('screen').catch(() => {});
+  const requestWake = () => navigator.wakeLock.request('screen').catch(() => {});
+  requestWake();
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') requestWake();
+  });
 }
 
-// --- IMU Motion Controller Setup ---
+// --- Motion controller ---
 const motion = new PhoneMotionController({
   handedness: myHand,
   isServeReadyFn: () => activeGameId === GAMES.TENNIS.id && currentState?.phase === PHASE.SERVE_READY && currentState?.serverSeat === mySeat,
@@ -149,69 +218,91 @@ const motion = new PhoneMotionController({
   onSwing: (swing) => triggerSwing(swing),
   onPose: (pose) => {
     socket.send({ type: MSG.POSE, pose });
+    if (swipeStart) return;
     const deg = clamp(pose.roll * 45, -45, 45);
     const tilt = clamp(pose.pitch * 18, -22, 22);
-    const visual = activeGameId === GAMES.BOWLING.id ? bowlingBallSvg : racketSvg;
-    visual.style.transform = `rotate(${deg}deg) translateY(${tilt}px)`;
+    activeVisual().style.transform = `rotate(${deg}deg) translateY(${tilt}px)`;
   },
   onSensorState: (st) => {
     if (st.active) {
       sensorBanner.classList.add('hidden');
-      sensorModeLabel.textContent = 'IMU MOTION ACTIVE 🟢';
+      setText(sensorModeLabel, 'Motion on');
+      startMeterLoop();
     } else if (st.permission === 'denied' || st.permission === 'unavailable') {
       sensorBanner.classList.add('warn');
-      const httpsHint = window.location.protocol !== 'https:' && window.location.hostname !== 'localhost'
-        ? ' (Use HTTPS URL for mobile IMU sensors!)'
-        : '';
-      sensorBannerText.textContent = `Touch/Swipe Mode Active — ${st.reason || 'Sensors off'}${httpsHint}`;
-      btnEnableSensors.textContent = 'Retry';
-      sensorModeLabel.textContent = 'TOUCH SWIPE / KEYBOARD';
+      const needsHttps = window.location.protocol !== 'https:' && window.location.hostname !== 'localhost';
+      sensorBannerText.textContent = needsHttps
+        ? 'Motion needs a secure (https) link. Swipe on the court to play for now.'
+        : `Motion is off (${(st.reason || 'no sensor access').toLowerCase()}). Swipe on the court to play.`;
+      btnEnableSensors.textContent = 'Try again';
+      setText(sensorModeLabel, 'Touch');
     }
   }
 });
+if (savedSens) motion.setSensitivity(savedSens);
 
-// Auto-hide sensor button on pure desktop without touch, keep it super prominent on mobile
 const isLikelyMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 if (!isLikelyMobile && !PhoneMotionController.needsPermissionPrompt()) {
-  sensorBannerText.textContent = '💻 Desktop Mode: Swipe the racket pad or press Space / WASD to play!';
-  btnEnableSensors.textContent = 'Try IMU';
+  sensorBannerText.textContent = 'On a computer, swipe the court or press Space to swing.';
+  btnEnableSensors.textContent = 'Try motion';
+  btnEnableSensors.classList.replace('btn-ball', 'btn-court');
 }
 
-// Live G-force power meter animation
-function animateMeter() {
-  if (motion.sensorActive) {
-    swingMeterFill.style.width = `${Math.round(motion.lastEnergy * 100)}%`;
-  }
-  requestAnimationFrame(animateMeter);
+// Live power meter: only runs while sensors stream, and only writes on change
+let meterRaf = 0;
+let lastMeter = -1;
+function setMeter(v) {
+  const q = Math.round(clamp(v, 0, 1) * 100);
+  if (q === lastMeter) return;
+  lastMeter = q;
+  swingMeterFill.style.transform = `scaleX(${q / 100})`;
 }
-requestAnimationFrame(animateMeter);
+function startMeterLoop() {
+  if (meterRaf) return;
+  const loop = () => {
+    if (!motion.sensorActive) { meterRaf = 0; return; }
+    if (!document.hidden) setMeter(motion.lastEnergy);
+    meterRaf = requestAnimationFrame(loop);
+  };
+  meterRaf = requestAnimationFrame(loop);
+}
 
-// --- Core Swing / Toss Dispatchers ---
+function pulseMeter(power) {
+  setMeter(power);
+  setTimeout(() => { if (!motion.sensorActive) setMeter(0); }, 260);
+}
+
+function activeVisual() {
+  return activeGameId === GAMES.BOWLING.id ? bowlingBallSvg : racketSvg;
+}
+
+// --- Swing / toss dispatch ---
 function triggerToss() {
   audio.unlock();
   if (phoneSoundEnabled) audio.playToss();
   motion.vibrate('toss');
-  flashRacketPad();
+  flashPad();
   socket.send({ type: MSG.TOSS });
+}
+
+function isMyBowlingTurn() {
+  return activeGameId === GAMES.BOWLING.id &&
+    currentState?.phase === BOWLING_PHASE.AIMING &&
+    currentState?.activeSeat === mySeat;
 }
 
 function triggerSwing(raw = {}) {
   audio.unlock();
   if (activeGameId === GAMES.BOWLING.id) {
-    if (currentState?.phase !== BOWLING_PHASE.AIMING || currentState?.activeSeat !== mySeat) {
-      return;
-    }
+    if (!isMyBowlingTurn()) return;
     const spin = clamp(bowlHook !== 0 ? bowlHook : (raw.spin ?? 0), -1, 1);
     const power = clamp(raw.power ?? 0.82, 0.35, 1.0);
     const aimOffset = clamp(raw.aim ?? 0, -1, 1);
     socket.send({ type: MSG.BOWL_THROW, power, spin, aimOffset });
     if (phoneSoundEnabled) audio.playWhoosh(power);
-    flashRacketPad();
-    swingMeterFill.style.width = `${Math.round(power * 100)}%`;
-    setTimeout(() => {
-      if (!motion.sensorActive) swingMeterFill.style.width = '0%';
-    }, 240);
-    bowlingBallSvg.style.transform = 'translateY(-36px) scale(1.12)';
+    flashPad();
+    pulseMeter(power);
+    bowlingBallSvg.style.transform = 'translateY(-36px) scale(1.08)';
     setTimeout(() => { bowlingBallSvg.style.transform = ''; }, 200);
     return;
   }
@@ -239,36 +330,35 @@ function triggerSwing(raw = {}) {
 
   socket.send(payload);
   if (phoneSoundEnabled) audio.playWhoosh(payload.power);
-  flashRacketPad();
-  swingMeterFill.style.width = `${Math.round(payload.power * 100)}%`;
-  setTimeout(() => {
-    if (!motion.sensorActive) swingMeterFill.style.width = '0%';
-  }, 240);
-
-  // Brief visual swing kick on SVG racket
-  racketSvg.style.transform = `rotate(${payload.side === 'backhand' ? 42 : -42}deg) scale(1.12)`;
+  flashPad();
+  pulseMeter(payload.power);
+  racketSvg.style.transform = `rotate(${payload.side === 'backhand' ? 42 : -42}deg) scale(1.08)`;
   setTimeout(() => { racketSvg.style.transform = ''; }, 180);
 }
 
 function nudgeBowlingLane(delta) {
-  if (activeGameId !== GAMES.BOWLING.id || currentState?.phase !== BOWLING_PHASE.AIMING || currentState?.activeSeat !== mySeat) return;
+  if (!isMyBowlingTurn()) return;
   bowlLaneX = clamp(bowlLaneX + delta, -0.42, 0.42);
   socket.send({ type: MSG.BOWL_AIM, laneX: bowlLaneX, spin: bowlHook });
 }
 
-function flashRacketPad() {
+function flashPad() {
   racketPad.classList.add('swing-flash');
-  setTimeout(() => racketPad.classList.remove('swing-flash'), 170);
+  setTimeout(() => racketPad.classList.remove('swing-flash'), 160);
 }
 
 function showShotFeedback(text) {
   shotFeedback.textContent = text;
   shotFeedback.classList.remove('hidden');
+  // Restart the pop animation
+  shotFeedback.style.animation = 'none';
+  void shotFeedback.offsetWidth;
+  shotFeedback.style.animation = '';
   clearTimeout(feedbackTimer);
   feedbackTimer = setTimeout(() => shotFeedback.classList.add('hidden'), 1800);
 }
 
-// --- AirPlay Offscreen Court/Alley Renderer -> Live Video Stream ---
+// --- AirPlay offscreen renderer -> live video stream ---
 function createAirPlayRenderer(gameId, canvas) {
   const r = gameId === GAMES.BOWLING.id
     ? new BowlingRenderer(canvas, { showEmbeddedHud: true })
@@ -296,32 +386,39 @@ function ensureAirPlayStreamReady() {
   airplayCanvas.height = 720;
   airplayRendererGameId = activeGameId;
   airplayRenderer = createAirPlayRenderer(activeGameId, airplayCanvas);
-
-  const audioTrack = audio.getMediaStreamTrack();
-  castBridge.attachAirPlayStream(airplayVideo, airplayCanvas, audioTrack);
+  castBridge.attachAirPlayStream(airplayVideo, airplayCanvas, audio.getMediaStreamTrack());
 }
 
-function updateCastUI(status) {
-  const tvUrl = `${window.location.origin}/tv.html?room=${encodeURIComponent(roomCode)}`;
-  castTvUrl.textContent = tvUrl;
-  const codeLabel = roomCode || '----';
+const METHOD_LABELS = {
+  google_cast: 'Chromecast',
+  presentation: 'Chrome casting',
+  airplay: 'AirPlay',
+  window: 'TV window'
+};
 
+function updateCastUI(status) {
+  castTvUrl.textContent = `${window.location.host}/tv?room=${roomCode || ''}`;
   if (status.active) {
-    castStatusLine.textContent = `✅ Casting via ${status.deviceName || status.method} • Room ${codeLabel}`;
-    castStatusLine.className = 'pill pill-green';
-    btnCastTv.textContent = `📺 ${status.deviceName ? 'Casting' : 'Cast On'}`;
-    btnCastTv.classList.replace('btn-primary', 'btn-green');
+    const name = status.deviceName || METHOD_LABELS[status.method] || 'TV';
+    castStatusText.textContent = `Showing on ${name}`;
+    castStatusLine.dataset.state = 'on';
+    castBtnLabel.textContent = 'On TV';
+    btnCastTv.dataset.active = 'true';
   } else {
-    castStatusLine.textContent = `Ready to Cast • Room ${codeLabel}`;
-    castStatusLine.className = 'pill pill-blue';
-    btnCastTv.textContent = '📺 Cast / AirPlay';
-    btnCastTv.classList.replace('btn-green', 'btn-primary');
+    castStatusText.textContent = 'Not showing on a TV yet';
+    castStatusLine.dataset.state = 'off';
+    castBtnLabel.textContent = 'Cast';
+    btnCastTv.dataset.active = 'false';
   }
 }
 
-// --- Socket Handlers ---
+function currentCastStatus() {
+  return { active: Boolean(castBridge.activeMethod), method: castBridge.activeMethod, deviceName: castBridge.deviceName };
+}
+
+// --- Socket handlers ---
 socket.on('open', () => {
-  connDot.style.background = '#22c55e';
+  connMeta.dataset.conn = 'on';
   if (roomCode) {
     socket.send({
       type: MSG.JOIN_ROOM,
@@ -343,11 +440,12 @@ socket.on('open', () => {
 });
 
 socket.on('close', () => {
-  connDot.style.background = '#ef4444';
+  connMeta.dataset.conn = 'off';
+  setText(ctrlRtt, 'Reconnecting…');
 });
 
 socket.on('rtt', (ms) => {
-  ctrlRtt.textContent = `${ms}ms`;
+  setText(ctrlRtt, `${ms} ms`);
 });
 
 socket.on(MSG.WELCOME, (msg) => {
@@ -362,19 +460,17 @@ socket.on(MSG.WELCOME, (msg) => {
   const url = new URL(window.location.href);
   if (url.searchParams.get('room') !== roomCode) {
     url.searchParams.set('room', roomCode);
+    url.searchParams.delete('cast');
+    url.searchParams.delete('airplay');
     window.history.replaceState({}, '', url.toString());
   }
 
-  updateCastUI({ active: Boolean(castBridge.activeMethod), method: castBridge.activeMethod, deviceName: castBridge.deviceName });
-
-  // If user tapped "Cast to TV" or "AirPlay" from the landing hub, open Cast Sheet immediately!
-  if (autoCastMode || autoAirplay) {
-    castModal.classList.remove('hidden');
-  }
+  updateCastUI(currentCastStatus());
+  if (autoCastMode || autoAirplay) openSheet(castModal);
 });
 
 socket.on(MSG.ERROR, ({ message }) => {
-  alert(message);
+  toast(message, 'error');
 });
 
 socket.on(MSG.ROOM_STATE, ({ room }) => {
@@ -386,16 +482,20 @@ socket.on(MSG.ROOM_STATE, ({ room }) => {
   const mine = room.seats.find((s) => s.clientId === myClientId);
   if (mine) {
     mySeat = mine.seat;
-    const roleTag = isBowling ? 'BOWLER' : (mine.team === TEAMS.BLUE ? 'BLUE' : 'RED');
-    seatLabel.textContent = `P${mine.seat + 1} • ${roleTag}`;
-    if (!inputPlayerName.value) inputPlayerName.value = mine.name;
+    const color = isBowling ? SEAT_CSS[mine.seat] : TEAM_CSS[mine.team];
+    seatBadge.textContent = String(mine.seat + 1);
+    seatBadge.style.setProperty('--seat', color);
+    bowlingBallSvg.style.setProperty('--seat', color);
+    const role = isBowling ? `Bowler ${mine.seat + 1}` : `${mine.team === TEAMS.BLUE ? 'Blue' : 'Red'} ${mine.role === 'front' ? 'net' : 'baseline'}`;
+    setText(seatLabel, mine.name);
+    setText(seatRole, `${role} ·`);
+    if (!inputPlayerName.value && document.activeElement !== inputPlayerName) inputPlayerName.value = mine.name;
   }
 
-  document.querySelectorAll('#ctrl-game-group .seg-btn').forEach((b) => {
-    b.classList.toggle('active', b.dataset.game === activeGameId);
-  });
-  ctrlTennisConfigRow.classList.toggle('hidden', isBowling);
-  ctrlBowlingConfigRow.classList.toggle('hidden', !isBowling);
+  setPressed('#ctrl-game-group .game-tile', (b) => b.dataset.game === activeGameId);
+  ctrlModeRow.classList.toggle('hidden', isBowling);
+  ctrlFormatRow.classList.toggle('hidden', isBowling);
+  ctrlBowlingFormatRow.classList.toggle('hidden', !isBowling);
   ctrlTennisStrip.classList.toggle('hidden', isBowling);
   ctrlBowlingStrip.classList.toggle('hidden', !isBowling);
   racketSvg.classList.toggle('hidden', isBowling);
@@ -403,20 +503,18 @@ socket.on(MSG.ROOM_STATE, ({ room }) => {
   shotModGroup.classList.toggle('hidden', isBowling);
   bowlingControlsGroup.classList.toggle('hidden', !isBowling);
 
-  if (isBowling) {
-    selectBowlingFormat.value = room.format;
-    ctrlLobbyTip.textContent = 'Tip: Line up your shot, then swing forward or swipe up to roll toward the 1-3 pocket!';
-    padHint.textContent = 'Swing forward OR swipe up to roll your bowling ball!';
-  } else {
-    selectMode.value = room.mode;
-    selectFormat.value = room.format;
-    ctrlLobbyTip.textContent = 'Tip: Hold your phone securely like a tennis racket! Flick up to toss serves, swing forward to strike.';
-    padHint.textContent = 'Swing your phone OR swipe across this pad!';
-  }
+  setPressed('#ctrl-mode-group .seg-btn', (b) => b.dataset.mode === room.mode);
+  setPressed('#ctrl-format-group .seg-btn', (b) => b.dataset.format === room.format);
+  setPressed('#ctrl-bowling-format-group .seg-btn', (b) => b.dataset.format === room.format);
+  setPressed('#ctrl-diff-group .seg-btn', (b) => b.dataset.diff === room.difficulty);
 
-  document.querySelectorAll('#ctrl-diff-group .seg-btn').forEach((b) => {
-    b.classList.toggle('active', b.dataset.diff === room.difficulty);
-  });
+  if (isBowling) {
+    ctrlLobbyTip.textContent = 'Line up with the arrows, then swing forward or swipe up to roll.';
+    padHint.textContent = 'Swing forward, or swipe up on the lane.';
+  } else {
+    ctrlLobbyTip.textContent = 'Hold the phone like a racket handle. Flick up to serve, swing to hit.';
+    padHint.textContent = 'Swing your phone, or swipe across the court.';
+  }
 
   renderSeatPicker(room);
 
@@ -427,6 +525,23 @@ socket.on(MSG.ROOM_STATE, ({ room }) => {
   ctrlOverView.classList.toggle('hidden', !isOver);
 });
 
+function showOver(title, sub) {
+  ctrlLobbyView.classList.add('hidden');
+  ctrlPlayView.classList.add('hidden');
+  ctrlOverView.classList.remove('hidden');
+  setText(ctrlOverTitle, title);
+  setText(ctrlOverSub, sub);
+}
+
+function setAction(label, enabled = true) {
+  setText(btnTapAction, label);
+  if (btnTapAction.disabled === enabled) btnTapAction.disabled = !enabled;
+}
+
+function setReady(on) {
+  racketPad.classList.toggle('is-ready', on);
+}
+
 socket.on(MSG.GAME_STATE, ({ state }) => {
   currentState = state;
   if (state.gameId && state.gameId !== activeGameId) {
@@ -436,82 +551,100 @@ socket.on(MSG.GAME_STATE, ({ state }) => {
   if (airplayRenderer) airplayRenderer.updateState(state);
 
   if (state.gameId === GAMES.BOWLING.id) {
-    ctrlBowlFrame.textContent = `FRAME ${state.currentFrame}/${state.totalFrames}`;
+    setText(ctrlBowlFrame, `Frame ${state.currentFrame}/${state.totalFrames}`);
     const me = state.players?.[mySeat];
-    ctrlBowlScore.textContent = String(me?.totalScore ?? 0);
+    setText(ctrlBowlScore, String(me?.totalScore ?? 0));
     const isMyTurn = state.activeSeat === mySeat;
-    const activeBowler = state.players?.[state.activeSeat];
-    ctrlBowlTurn.textContent = isMyTurn ? 'YOUR TURN!' : `${activeBowler?.name || 'CPU'}'s TURN`;
+    const bowler = state.players?.[state.activeSeat];
+    const bowlerName = bowler?.name || 'Computer';
+    setText(ctrlBowlTurn, isMyTurn ? 'Your turn' : `${bowlerName}’s turn`);
+    if (ctrlBowlTurn.dataset.mine !== String(isMyTurn)) ctrlBowlTurn.dataset.mine = String(isMyTurn);
     bowlLaneX = state.aimX ?? bowlLaneX;
-    racketPad.classList.toggle('serve-glow', isMyTurn && state.phase === BOWLING_PHASE.AIMING);
+    setReady(isMyTurn && state.phase === BOWLING_PHASE.AIMING);
 
     if (state.phase === BOWLING_PHASE.AIMING) {
-      ctrlPrompt.textContent = isMyTurn ? '🎳 AIM & SWING FORWARD TO BOWL!' : `👀 WATCH ${(activeBowler?.name || 'CPU').toUpperCase()}...`;
-      btnTapAction.textContent = isMyTurn ? '🎳 Bowl Ball!' : '⏳ Wait...';
+      if (isMyTurn) {
+        setPrompt('Aim, then swing forward to bowl', 'go');
+        setAction('Bowl');
+      } else {
+        setPrompt(`${bowlerName} is bowling`, 'wait');
+        setAction('Wait for your turn', false);
+      }
     } else if (state.phase === BOWLING_PHASE.ROLLING) {
-      ctrlPrompt.textContent = '⚡ BALL ROLLING DOWN THE LANE!';
-      btnTapAction.textContent = '🎳 Rolling...';
+      setPrompt('Rolling…', 'wait');
+      setAction('Rolling…', false);
     } else if (state.phase === BOWLING_PHASE.PIN_SETTLE) {
-      ctrlPrompt.textContent = state.callout?.text || '📌 COUNTING PINS...';
-      btnTapAction.textContent = '⏳ Settling...';
+      setPrompt(state.callout?.text ? sentence(state.callout.text) : 'Counting pins…', '');
+      setAction('Counting pins…', false);
     } else if (state.phase === BOWLING_PHASE.MATCH_OVER) {
-      ctrlLobbyView.classList.add('hidden');
-      ctrlPlayView.classList.add('hidden');
-      ctrlOverView.classList.remove('hidden');
       const iWon = Array.isArray(state.winnerSeats) ? state.winnerSeats.includes(mySeat) : state.winnerSeat === mySeat;
-      ctrlOverTitle.textContent = iWon ? '🏆 YOU WON THE MATCH!' : 'GOOD GAME!';
-      ctrlOverSub.textContent = `Your Score: ${me?.totalScore ?? 0} pts (${state.totalFrames} Frames)`;
+      showOver(iWon ? 'You win' : 'Good game', `You scored ${me?.totalScore ?? 0} over ${state.totalFrames} frames.`);
     }
     return;
   }
 
-  ctrlGamesBlue.textContent = state.games[0];
-  ctrlGamesRed.textContent = state.games[1];
-  ctrlPtsBlue.textContent = state.scoreText.blue;
-  ctrlPtsRed.textContent = state.scoreText.red;
+  setText(ctrlGamesBlue, String(state.games[0]));
+  setText(ctrlGamesRed, String(state.games[1]));
+  setText(ctrlPtsBlue, String(state.scoreText.blue));
+  setText(ctrlPtsRed, String(state.scoreText.red));
 
   const isMyServe = state.serverSeat === mySeat;
-  racketPad.classList.toggle('serve-glow', isMyServe && (state.phase === PHASE.SERVE_READY || state.phase === PHASE.SERVE_TOSS));
+  setReady(isMyServe && (state.phase === PHASE.SERVE_READY || state.phase === PHASE.SERVE_TOSS));
 
   if (state.phase === PHASE.SERVE_READY) {
-    ctrlPrompt.textContent = isMyServe ? '⬆️ YOUR SERVE — FLICK UP TO TOSS!' : '👀 OPPONENT PREPARING SERVE...';
-    btnTapAction.textContent = isMyServe ? '⬆️ Toss Ball' : '🎾 Swing';
+    if (isMyServe) {
+      setPrompt('Your serve. Flick up to toss.', 'go');
+      setAction('Toss');
+    } else {
+      setPrompt('Opponent to serve', 'wait');
+      setAction('Swing');
+    }
   } else if (state.phase === PHASE.SERVE_TOSS) {
-    ctrlPrompt.textContent = isMyServe
-      ? (state.ball.sweetSpotWindow > 0.65 ? '⚡ GOLDEN APEX — SWING NOW!' : '🎯 WATCH THE TOSS — SWING!')
-      : '👀 INCOMING SERVE — GET READY!';
-    btnTapAction.textContent = '💥 SMASH SERVE!';
+    if (isMyServe) {
+      setPrompt(state.ball.sweetSpotWindow > 0.65 ? 'Swing now!' : 'Watch the toss…', 'go');
+      setAction('Serve');
+    } else {
+      setPrompt('Serve coming. Get ready.', '');
+      setAction('Swing');
+    }
   } else if (state.phase === PHASE.RALLY) {
-    ctrlPrompt.textContent = state.rallyCount > 1 ? `🔥 RALLY ×${state.rallyCount} — SWING TO STRIKE!` : '🎾 BALL IN PLAY — SWING!';
-    btnTapAction.textContent = '🎾 Swing Racket';
+    setPrompt(state.rallyCount > 1 ? `Rally: ${state.rallyCount} shots` : 'Ball in play', '');
+    setAction('Swing');
   } else if (state.phase === PHASE.POINT_OVER || state.phase === PHASE.GAME_OVER) {
-    ctrlPrompt.textContent = state.callout?.text || (state.phase === PHASE.GAME_OVER ? 'GAME OVER!' : 'POINT OVER');
-    btnTapAction.textContent = '⏳ Next Point...';
+    setPrompt(state.callout?.text ? sentence(state.callout.text) : (state.phase === PHASE.GAME_OVER ? 'Game' : 'Point'), '');
+    setAction('Next point…', false);
   } else if (state.phase === PHASE.MATCH_OVER) {
-    ctrlLobbyView.classList.add('hidden');
-    ctrlPlayView.classList.add('hidden');
-    ctrlOverView.classList.remove('hidden');
     const myTeam = mySeat % 2 === 0 ? TEAMS.BLUE : TEAMS.RED;
     const iWon = state.winnerTeam === myTeam;
-    ctrlOverTitle.textContent = iWon ? '🎉 YOU WON THE MATCH!' : 'GOOD GAME!';
-    ctrlOverSub.textContent = `Final Games: Blue ${state.games[0]} – ${state.games[1]} Red`;
+    showOver(iWon ? 'You win' : 'Good game', `Blue ${state.games[0]}, Red ${state.games[1]} in games.`);
   }
 });
+
+// Server callouts are shouted ("ACE!", "OUT • DEUCE"); calm them down for the phone
+function sentence(text) {
+  const t = String(text).replace(/\s*•\s*/g, '. ').toLowerCase();
+  return t.charAt(0).toUpperCase() + t.slice(1);
+}
+
+const SHOT_NAMES = {
+  drive: 'Drive', topspin: 'Topspin', slice: 'Slice', lob: 'Lob', smash: 'Smash',
+  serve: 'Serve', rocket_serve: 'Rocket serve', volley: 'Volley'
+};
 
 socket.on(MSG.GAME_EVENT, ({ event }) => {
   if (airplayRenderer) airplayRenderer.handleGameEvent(event);
   if (!event) return;
   if (event.type === 'ball_hit' && event.seat === mySeat) {
     if (phoneSoundEnabled) audio.playHit({ power: event.power, shotType: event.shotType, sweetSpot: event.sweetSpot });
-    const label = event.shotType.replace('_', ' ').toUpperCase();
-    showShotFeedback(`${event.mph} MPH • ${label}${event.sweetSpot ? ' ★' : ''}`);
+    const name = SHOT_NAMES[event.shotType] || 'Hit';
+    showShotFeedback(`${name} · ${event.mph} mph${event.sweetSpot ? ' · sweet spot' : ''}`);
   } else if (event.type === 'bowl_throw' && event.seat === mySeat) {
     if (phoneSoundEnabled) audio.playBowlRoll();
-    showShotFeedback(`${event.mph} MPH • ROLL!`);
+    showShotFeedback(`${event.mph} mph`);
   } else if (event.type === 'roll_over' && event.seat === mySeat) {
-    if (event.isStrike) showShotFeedback('⚡ STRIKE!');
-    else if (event.isSpare) showShotFeedback('✨ SPARE!');
-    else showShotFeedback(`${event.knocked} PIN${event.knocked === 1 ? '' : 'S'}!`);
+    if (event.isStrike) showShotFeedback('Strike!');
+    else if (event.isSpare) showShotFeedback('Spare!');
+    else showShotFeedback(`${event.knocked} pin${event.knocked === 1 ? '' : 's'}`);
   }
 });
 
@@ -519,30 +652,34 @@ socket.on(MSG.HAPTIC, ({ pattern }) => {
   motion.vibrate(pattern);
 });
 
+let lastSeatKey = '';
 function renderSeatPicker(room) {
   const isBowling = room.gameId === GAMES.BOWLING.id;
-  const labels = isBowling
-    ? ['Bowler 1', 'Bowler 2', 'Bowler 3', 'Bowler 4']
-    : ['P1 • Blue Back', 'P2 • Red Back', 'P3 • Blue Net', 'P4 • Red Net'];
+  const key = JSON.stringify([room.gameId, myClientId, room.seats.map((s) => [s.clientId, s.name, s.isHuman])]);
+  if (key === lastSeatKey) return;
+  lastSeatKey = key;
+
   seatPickerGrid.innerHTML = '';
   for (const s of room.seats) {
     const isMine = s.clientId === myClientId;
     const takenByOther = s.isHuman && !isMine;
     const btn = document.createElement('button');
-    btn.className = `seat-pick-btn ${isMine ? 'mine' : ''} ${takenByOther ? 'taken' : ''}`;
+    btn.className = `seat-pick ${isMine ? 'mine' : ''} ${takenByOther ? 'taken' : ''}`;
     btn.disabled = takenByOther;
-    btn.innerHTML = `
-      <div style="font-weight:900; font-size:0.86rem; color:${isBowling ? s.color : (s.team === 0 ? '#60a5fa' : '#f87171')};">${labels[s.seat]}</div>
-      <div style="font-size:0.78rem; color:#e2e8f0; margin-top:2px;">${isMine ? '✓ You' : (s.isHuman ? escapeHtml(s.name) : 'CPU (Tap to take)')}</div>
-    `;
-    btn.addEventListener('click', () => {
-      socket.send({ type: MSG.SELECT_SEAT, seat: s.seat });
-    });
+    btn.style.setProperty('--seat', isBowling ? SEAT_CSS[s.seat] : TEAM_CSS[s.team]);
+    const role = isBowling
+      ? `Bowler ${s.seat + 1}`
+      : `${s.team === TEAMS.BLUE ? 'Blue' : 'Red'} ${s.role === 'front' ? 'net' : 'baseline'}`;
+    const who = isMine ? 'You' : (s.isHuman ? escapeHtml(s.name) : 'Computer · tap to take');
+    btn.innerHTML = `<span class="seat-pick-role">${role}</span><span class="seat-pick-who">${who}</span>`;
+    if (!isMine && !takenByOther) {
+      btn.addEventListener('click', () => socket.send({ type: MSG.SELECT_SEAT, seat: s.seat }));
+    }
     seatPickerGrid.appendChild(btn);
   }
 }
 
-// --- Touch Swipe-to-Swing Pad (Seamless fallback + companion to IMU!) ---
+// --- Touch swipe pad ---
 let swipeStart = null;
 racketPad.addEventListener('pointerdown', (e) => {
   audio.unlock();
@@ -550,16 +687,23 @@ racketPad.addEventListener('pointerdown', (e) => {
   swipeStart = { x: e.clientX, y: e.clientY, t: performance.now() };
 });
 
+let swipeRaf = 0;
+let swipePos = null;
 racketPad.addEventListener('pointermove', (e) => {
   if (!swipeStart) return;
-  const dx = e.clientX - swipeStart.x;
-  const dy = e.clientY - swipeStart.y;
-  const activeVisual = activeGameId === GAMES.BOWLING.id ? bowlingBallSvg : racketSvg;
-  activeVisual.style.transform = `translate(${clamp(dx * 0.25, -45, 45)}px, ${clamp(dy * 0.25, -45, 45)}px) rotate(${clamp(dx * 0.25, -35, 35)}deg)`;
-});
+  swipePos = { dx: e.clientX - swipeStart.x, dy: e.clientY - swipeStart.y };
+  if (swipeRaf) return;
+  swipeRaf = requestAnimationFrame(() => {
+    swipeRaf = 0;
+    if (!swipeStart || !swipePos) return;
+    const { dx, dy } = swipePos;
+    activeVisual().style.transform = `translate(${clamp(dx * 0.25, -45, 45)}px, ${clamp(dy * 0.25, -45, 45)}px) rotate(${clamp(dx * 0.25, -35, 35)}deg)`;
+  });
+}, { passive: true });
 
 function clearSwipeVisual() {
   swipeStart = null;
+  swipePos = null;
   racketSvg.style.transform = '';
   bowlingBallSvg.style.transform = '';
 }
@@ -594,12 +738,11 @@ racketPad.addEventListener('pointerup', (e) => {
   }
 
   if (dist < 18) {
-    // Quick tap -> crisp flat drive
     triggerSwing({ power: 0.74, aim: 0, spin: 0.15, elevation: 'flat' });
     return;
   }
 
-  const velocity = dist / dt; // px/ms
+  const velocity = dist / dt;
   const power = clamp(0.35 + velocity * 0.42, 0.35, 1.0);
   const aim = clamp(dx / 150, -0.95, 0.95);
   const side = dx >= 0 ? 'forehand' : 'backhand';
@@ -612,31 +755,24 @@ racketPad.addEventListener('pointerup', (e) => {
     elevation = 'smash';
     spin = 0.5;
   } else if (dy < -30) {
-    spin = 0.72; // Swipe forward-up -> topspin
+    spin = 0.72;
   } else if (dy > 35) {
-    spin = -0.65; // Swipe down-across -> slice
+    spin = -0.65;
   }
 
   triggerSwing({ power, aim, spin, elevation, side });
 });
 
-// --- Desktop Keyboard Controls ---
+// --- Keyboard ---
 const keysHeld = new Set();
 window.addEventListener('blur', () => keysHeld.clear());
 window.addEventListener('keydown', (e) => {
-  if (e.code === 'Escape') {
-    castModal.classList.add('hidden');
-    settingsModal.classList.add('hidden');
-    return;
-  }
   if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
   keysHeld.add(e.code);
-
-  const modalOpen = !castModal.classList.contains('hidden') || !settingsModal.classList.contains('hidden');
-  if (modalOpen) return;
+  if (castModal.open || settingsModal.open) return;
 
   if (activeGameId === GAMES.BOWLING.id) {
-    if (currentState?.phase === BOWLING_PHASE.AIMING && currentState?.activeSeat === mySeat) {
+    if (isMyBowlingTurn()) {
       if (e.code === 'KeyA' || e.code === 'ArrowLeft') {
         e.preventDefault();
         nudgeBowlingLane(-0.08);
@@ -674,7 +810,7 @@ window.addEventListener('keydown', (e) => {
 });
 window.addEventListener('keyup', (e) => keysHeld.delete(e.code));
 
-// --- UI Event Listeners ---
+// --- UI listeners ---
 btnEnableSensors.addEventListener('click', async () => {
   audio.unlock();
   await motion.enableSensors();
@@ -686,35 +822,33 @@ btnTapAction.addEventListener('click', () => {
 
 btnCalibrate.addEventListener('click', () => {
   motion.calibrate();
-  showShotFeedback('🎯 CONTROLLER CALIBRATED!');
+  showShotFeedback('Motion recentered');
 });
 
-document.querySelectorAll('#ctrl-game-group .seg-btn').forEach((btn) => {
-  btn.addEventListener('click', () => {
-    socket.send({ type: MSG.SELECT_GAME, gameId: btn.dataset.game });
-  });
+document.querySelectorAll('#ctrl-game-group .game-tile').forEach((btn) => {
+  btn.addEventListener('click', () => socket.send({ type: MSG.SELECT_GAME, gameId: btn.dataset.game }));
 });
 
-document.querySelectorAll('#shot-mod-group .mod-btn').forEach((btn) => {
+document.querySelectorAll('#shot-mod-group .seg-btn').forEach((btn) => {
   btn.addEventListener('click', () => {
     shotMod = btn.dataset.mod;
-    document.querySelectorAll('#shot-mod-group .mod-btn').forEach((b) => b.classList.toggle('active', b === btn));
+    setPressed('#shot-mod-group .seg-btn', (b) => b === btn);
   });
 });
 
 btnBowlLeft?.addEventListener('click', () => nudgeBowlingLane(-0.09));
 btnBowlCenter?.addEventListener('click', () => {
-  if (activeGameId !== GAMES.BOWLING.id || currentState?.phase !== BOWLING_PHASE.AIMING || currentState?.activeSeat !== mySeat) return;
+  if (!isMyBowlingTurn()) return;
   bowlLaneX = 0;
   socket.send({ type: MSG.BOWL_AIM, laneX: 0, aimAngle: 0, spin: bowlHook });
 });
 btnBowlRight?.addEventListener('click', () => nudgeBowlingLane(0.09));
 
-document.querySelectorAll('#bowling-hook-group .mod-btn').forEach((btn) => {
+document.querySelectorAll('#bowling-hook-group .seg-btn').forEach((btn) => {
   btn.addEventListener('click', () => {
     bowlHook = Number(btn.dataset.hook) || 0;
-    document.querySelectorAll('#bowling-hook-group .mod-btn').forEach((b) => b.classList.toggle('active', b === btn));
-    if (activeGameId === GAMES.BOWLING.id && currentState?.phase === BOWLING_PHASE.AIMING && currentState?.activeSeat === mySeat) {
+    setPressed('#bowling-hook-group .seg-btn', (b) => b === btn);
+    if (isMyBowlingTurn()) {
       socket.send({ type: MSG.BOWL_AIM, laneX: bowlLaneX, spin: bowlHook });
     }
   });
@@ -727,35 +861,30 @@ inputPlayerName.addEventListener('change', () => {
   localStorage.setItem('pocketparty_name', val);
   socket.send({ type: MSG.UPDATE_PROFILE, name: val });
 });
+inputPlayerName.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') inputPlayerName.blur();
+});
 
+setPressed('#hand-group .seg-btn', (b) => b.dataset.hand === myHand);
 document.querySelectorAll('#hand-group .seg-btn').forEach((btn) => {
-  btn.classList.toggle('active', btn.dataset.hand === myHand);
   btn.addEventListener('click', () => {
     myHand = btn.dataset.hand;
     localStorage.setItem('pocketparty_hand', myHand);
     motion.setHandedness(myHand);
-    document.querySelectorAll('#hand-group .seg-btn').forEach((b) => b.classList.toggle('active', b === btn));
+    setPressed('#hand-group .seg-btn', (b) => b === btn);
     socket.send({ type: MSG.UPDATE_PROFILE, handedness: myHand });
   });
 });
 
-selectMode.addEventListener('change', () => {
-  socket.send({ type: MSG.UPDATE_CONFIG, config: { mode: selectMode.value } });
-});
-
-selectFormat.addEventListener('change', () => {
-  socket.send({ type: MSG.UPDATE_CONFIG, config: { format: selectFormat.value } });
-});
-
-selectBowlingFormat?.addEventListener('change', () => {
-  socket.send({ type: MSG.UPDATE_CONFIG, config: { format: selectBowlingFormat.value } });
-});
-
-document.querySelectorAll('#ctrl-diff-group .seg-btn').forEach((btn) => {
-  btn.addEventListener('click', () => {
-    socket.send({ type: MSG.UPDATE_CONFIG, config: { difficulty: btn.dataset.diff } });
+function bindConfig(selector, key, attr) {
+  document.querySelectorAll(selector).forEach((btn) => {
+    btn.addEventListener('click', () => socket.send({ type: MSG.UPDATE_CONFIG, config: { [key]: btn.dataset[attr] } }));
   });
-});
+}
+bindConfig('#ctrl-mode-group .seg-btn', 'mode', 'mode');
+bindConfig('#ctrl-format-group .seg-btn', 'format', 'format');
+bindConfig('#ctrl-bowling-format-group .seg-btn', 'format', 'format');
+bindConfig('#ctrl-diff-group .seg-btn', 'difficulty', 'diff');
 
 btnCtrlStart.addEventListener('click', () => {
   audio.unlock();
@@ -767,21 +896,16 @@ btnCtrlRematch.addEventListener('click', () => {
   socket.send({ type: MSG.REMATCH });
 });
 
-btnCtrlLobby.addEventListener('click', () => {
-  socket.send({ type: MSG.RETURN_LOBBY });
-});
+btnCtrlLobby.addEventListener('click', () => socket.send({ type: MSG.RETURN_LOBBY }));
 
-// --- Cast / AirPlay Sheet Interactions ---
+// --- Cast sheet ---
 btnCastTv.addEventListener('click', () => {
   audio.unlock();
-  updateCastUI({ active: Boolean(castBridge.activeMethod), method: castBridge.activeMethod, deviceName: castBridge.deviceName });
-  castModal.classList.remove('hidden');
+  updateCastUI(currentCastStatus());
+  openSheet(castModal);
 });
 
-btnCloseCastModal.addEventListener('click', () => castModal.classList.add('hidden'));
-castModal.addEventListener('click', (e) => {
-  if (e.target === castModal) castModal.classList.add('hidden');
-});
+btnCloseCastModal.addEventListener('click', () => closeSheet(castModal));
 
 btnCastGoogle.addEventListener('click', async () => {
   try {
@@ -790,13 +914,13 @@ btnCastGoogle.addEventListener('click', async () => {
     } else if (castBridge.capabilities.presentation) {
       await castBridge.startPresentationCast();
     } else {
-      alert('Google Cast / Presentation API requires Chrome (Android/Desktop). Opening TV window instead — or open the TV URL on your Chromecast/Smart TV!');
       castBridge.openTVWindow();
+      toast('This browser can’t cast. Opened the TV view in a new window instead.');
     }
-    castModal.classList.add('hidden');
+    closeSheet(castModal);
   } catch (err) {
     if (err?.name !== 'AbortError') {
-      alert(err?.message || 'Could not start Cast session. You can also open the TV URL directly on your TV browser.');
+      toast(err?.message || 'Casting didn’t start. Open the TV link in the TV’s browser instead.', 'error');
     }
   }
 });
@@ -807,11 +931,10 @@ const triggerAirplayPicker = async () => {
   airplayPip.classList.remove('hidden');
   try {
     await castBridge.promptAirPlayOrRemotePlayback();
-    castModal.classList.add('hidden');
-  } catch (err) {
-    castModal.classList.add('hidden');
-    showShotFeedback('📡 AirPlay feed live! Use TV link or Safari AirPlay icon.');
+  } catch {
+    toast('AirPlay feed is ready. Pick your TV from the AirPlay button in Safari.');
   }
+  closeSheet(castModal);
 };
 
 btnCastAirplay.addEventListener('click', triggerAirplayPicker);
@@ -820,26 +943,25 @@ btnHidePip.addEventListener('click', () => airplayPip.classList.add('hidden'));
 
 btnCastWindow.addEventListener('click', () => {
   castBridge.openTVWindow();
-  castModal.classList.add('hidden');
+  closeSheet(castModal);
 });
 
-// --- Settings Sheet ---
-btnCtrlSettings.addEventListener('click', () => settingsModal.classList.remove('hidden'));
-btnCloseSettings.addEventListener('click', () => settingsModal.classList.add('hidden'));
-settingsModal.addEventListener('click', (e) => {
-  if (e.target === settingsModal) settingsModal.classList.add('hidden');
-});
+// --- Settings sheet ---
+btnCtrlSettings.addEventListener('click', () => openSheet(settingsModal));
+btnCloseSettings.addEventListener('click', () => closeSheet(settingsModal));
 inputSensitivity.addEventListener('input', () => {
   const v = Number(inputSensitivity.value);
   sensVal.textContent = `${v.toFixed(2)}×`;
   motion.setSensitivity(v);
+  localStorage.setItem('pocketparty_sens', String(v));
 });
 chkPhoneSound.addEventListener('change', () => {
   phoneSoundEnabled = chkPhoneSound.checked;
+  localStorage.setItem('pocketparty_sound', phoneSoundEnabled ? 'on' : 'off');
 });
 btnModalLobby.addEventListener('click', () => {
   socket.send({ type: MSG.RETURN_LOBBY });
-  settingsModal.classList.add('hidden');
+  closeSheet(settingsModal);
 });
 
 socket.connect();
