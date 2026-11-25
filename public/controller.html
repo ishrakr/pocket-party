@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>PocketParty — Motion Controller</title>
+  <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body class="ctrl-body">
+  <!-- Compact Top Header -->
+  <header class="ctrl-header">
+    <div class="ctrl-seat-badge">
+      <span id="conn-dot" class="ctrl-dot"></span>
+      <span id="seat-label">Connecting...</span>
+      <span id="room-pill" class="pill pill-gold" style="padding:3px 9px; font-size:0.74rem;">----</span>
+    </div>
+    <div style="display:flex; gap:6px; align-items:center;">
+      <button id="btn-cast-tv" class="btn btn-primary btn-sm" style="padding:7px 12px;">📺 Cast / AirPlay</button>
+      <button id="btn-ctrl-settings" class="btn btn-dark btn-sm" style="padding:7px 10px;" title="Settings">⚙️</button>
+    </div>
+  </header>
+
+  <main class="ctrl-main">
+    <!-- Motion Sensor Permission / Status Banner -->
+    <div id="sensor-banner" class="ctrl-banner">
+      <span id="sensor-banner-text">📱 Tap to enable motion swing sensors!</span>
+      <button id="btn-enable-sensors" class="btn btn-gold btn-sm">Enable Motion</button>
+    </div>
+
+    <!-- AirPlay Live Stream Preview (Visible only when AirPlay Stream Mode is active) -->
+    <div id="airplay-pip" class="airplay-pip hidden">
+      <video id="airplay-video" x-webkit-airplay="allow" playsinline autoplay muted></video>
+      <div style="position:absolute; top:8px; left:8px; right:8px; display:flex; justify-content:space-between; align-items:center;">
+        <span class="pill pill-dark" style="font-size:0.7rem;">📡 AirPlay Court Feed</span>
+        <div style="display:flex; gap:6px;">
+          <button id="btn-airplay-picker-inline" class="btn btn-gold btn-sm" style="padding:4px 10px; font-size:0.74rem;">AirPlay Picker</button>
+          <button id="btn-hide-pip" class="btn btn-dark btn-sm" style="padding:4px 8px; font-size:0.74rem;">Hide</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- LOBBY VIEW (Controller acts as TV lobby remote!) -->
+    <section id="ctrl-lobby-view" class="ctrl-lobby-panel">
+      <div style="display:grid; grid-template-columns:1fr auto; gap:10px; align-items:end;">
+        <div>
+          <label for="input-player-name">Your Name</label>
+          <input id="input-player-name" class="text-input" maxlength="14" placeholder="Player 1" style="padding:9px 12px; font-size:0.95rem;">
+        </div>
+        <div>
+          <label>Hand</label>
+          <div class="seg-group seg-group-dark" id="hand-group">
+            <button class="seg-btn active" data-hand="right">Right</button>
+            <button class="seg-btn" data-hand="left">Left</button>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <label>Choose Your Team &amp; Court Position</label>
+        <div id="seat-picker-grid" class="seat-picker-grid"></div>
+      </div>
+
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+        <div>
+          <label>Mode</label>
+          <select id="select-mode" class="text-input" style="padding:9px 10px; font-size:0.9rem;">
+            <option value="singles">1v1 Singles</option>
+            <option value="doubles">2v2 Doubles</option>
+          </select>
+        </div>
+        <div>
+          <label>Match Length</label>
+          <select id="select-format" class="text-input" style="padding:9px 10px; font-size:0.9rem;">
+            <option value="one_game">1 Game (Quick Match)</option>
+            <option value="best_of_3">Best of 3 Games</option>
+            <option value="best_of_5">Best of 5 Games</option>
+          </select>
+        </div>
+      </div>
+
+      <div>
+        <label>CPU Skill Level</label>
+        <div class="seg-group seg-group-dark" id="ctrl-diff-group" style="width:100%; justify-content:space-between;">
+          <button class="seg-btn" data-diff="rookie" style="flex:1;">Rookie</button>
+          <button class="seg-btn active" data-diff="pro" style="flex:1;">Pro</button>
+          <button class="seg-btn" data-diff="champion" style="flex:1;">Champion</button>
+        </div>
+      </div>
+
+      <button id="btn-ctrl-start" class="btn btn-green btn-block" style="padding:15px; font-size:1.1rem;">
+        🎾 Start Match on TV
+      </button>
+
+      <div style="font-size:0.78rem; color:#94a3b8; text-align:center;">
+        Tip: Hold your phone securely like a tennis racket! Flick up to toss serves, swing forward to strike.
+      </div>
+    </section>
+
+    <!-- MATCH PLAY VIEW (Live Motion Racket Controller!) -->
+    <section id="ctrl-play-view" class="hidden" style="flex:1; display:flex; flex-direction:column; gap:10px; min-height:0;">
+      <div class="ctrl-score-strip">
+        <div class="ctrl-team-score" style="color:#60a5fa;">
+          <span>BLUE</span>
+          <span id="ctrl-games-blue" class="pill pill-blue" style="color:#93c5fd;">0</span>
+          <span id="ctrl-pts-blue">0</span>
+        </div>
+        <div id="ctrl-rtt" style="font-size:0.74rem; color:#94a3b8; font-weight:800;">LIVE</div>
+        <div class="ctrl-team-score" style="color:#f87171;">
+          <span id="ctrl-pts-red">0</span>
+          <span id="ctrl-games-red" class="pill pill-red" style="color:#fca5a5;">0</span>
+          <span>RED</span>
+        </div>
+      </div>
+
+      <div id="ctrl-prompt" class="ctrl-prompt">READY TO PLAY</div>
+
+      <!-- Main Motion / Touch Swipe Racket Surface -->
+      <div id="racket-pad" class="racket-pad">
+        <div id="shot-feedback" class="shot-feedback hidden">104 MPH • TOPSPIN!</div>
+
+        <!-- Animated SVG Tennis Racket mirroring phone gyro & swipes -->
+        <svg id="racket-svg" class="racket-visual" viewBox="0 0 120 175" aria-hidden="true">
+          <defs>
+            <linearGradient id="rimGrad" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stop-color="#38bdf8"/>
+              <stop offset="100%" stop-color="#2563eb"/>
+            </linearGradient>
+          </defs>
+          <!-- Racket head -->
+          <ellipse cx="60" cy="56" rx="42" ry="50" fill="rgba(255,255,255,0.12)" stroke="url(#rimGrad)" stroke-width="7"/>
+          <!-- Strings -->
+          <g stroke="rgba(255,255,255,0.45)" stroke-width="1.5">
+            <line x1="36" y1="16" x2="36" y2="96"/>
+            <line x1="48" y1="9" x2="48" y2="103"/>
+            <line x1="60" y1="7" x2="60" y2="105"/>
+            <line x1="72" y1="9" x2="72" y2="103"/>
+            <line x1="84" y1="16" x2="84" y2="96"/>
+            <line x1="24" y1="36" x2="96" y2="36"/>
+            <line x1="19" y1="56" x2="101" y2="56"/>
+            <line x1="24" y1="76" x2="96" y2="76"/>
+          </g>
+          <!-- Throat & Grip -->
+          <path d="M44 102 L55 128 L65 128 L76 102" fill="none" stroke="#94a3b8" stroke-width="6" stroke-linejoin="round"/>
+          <rect x="53" y="126" width="14" height="44" rx="5" fill="#facc15" stroke="#0f172a" stroke-width="2"/>
+        </svg>
+
+        <div id="pad-hint" style="font-size:0.84rem; color:#cbd5e1; font-weight:700; text-align:center; padding:0 16px;">
+          Swing your phone OR swipe across this pad!
+        </div>
+
+        <div class="swing-meter-wrap">
+          <div style="display:flex; justify-content:space-between; font-size:0.72rem; color:#94a3b8; font-weight:800;">
+            <span>SWING POWER</span>
+            <span id="sensor-mode-label">TOUCH / KEYBOARD READY</span>
+          </div>
+          <div class="swing-meter-bar">
+            <div id="swing-meter-fill" class="swing-meter-fill"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Shot Modifiers (spin / lob) -->
+      <div class="shot-modifiers" id="shot-mod-group">
+        <button class="mod-btn active" data-mod="auto">⚡ Auto</button>
+        <button class="mod-btn" data-mod="topspin">🔥 Topspin</button>
+        <button class="mod-btn" data-mod="slice">❄️ Slice</button>
+        <button class="mod-btn" data-mod="lob">🎈 Lob</button>
+      </div>
+
+      <!-- Quick Action Row: Toss/Swing Tap + Calibrate -->
+      <div class="ctrl-action-row">
+        <button id="btn-tap-action" class="btn btn-gold" style="padding:13px;">🎾 Toss / Swing</button>
+        <button id="btn-calibrate" class="btn btn-dark" style="padding:13px;">🎯 Calibrate</button>
+      </div>
+    </section>
+
+    <!-- MATCH OVER VIEW -->
+    <section id="ctrl-over-view" class="ctrl-lobby-panel hidden" style="text-align:center; margin-top:16px;">
+      <div style="font-size:2.6rem;">🏆</div>
+      <h2 id="ctrl-over-title" style="margin:0; font-size:1.6rem;">MATCH COMPLETE!</h2>
+      <div id="ctrl-over-sub" style="color:#cbd5e1; font-weight:700;"></div>
+      <button id="btn-ctrl-rematch" class="btn btn-green btn-block">🔁 Play Rematch</button>
+      <button id="btn-ctrl-lobby" class="btn btn-dark btn-block">Back to Lobby</button>
+    </section>
+  </main>
+
+  <!-- Cast & AirPlay Modal Sheet -->
+  <div id="cast-modal" class="modal-backdrop hidden">
+    <div class="modal-sheet">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <h3>📺 Cast to TV</h3>
+        <button id="btn-close-cast-modal" class="btn btn-ghost btn-sm">✕</button>
+      </div>
+      <p style="margin:0; color:#475569; font-size:0.9rem;">
+        Send the 3D court to your TV while this phone stays your wireless motion racket!
+      </p>
+
+      <div id="cast-status-line" class="pill pill-blue" style="justify-content:center; padding:8px;">
+        Ready to Cast • Room <span id="cast-modal-room">----</span>
+      </div>
+
+      <button id="btn-cast-google" class="btn btn-primary btn-block">
+        📡 Google Cast / Chromecast
+      </button>
+      <button id="btn-cast-airplay" class="btn btn-gold btn-block">
+         AirPlay / Remote Playback Stream
+      </button>
+      <button id="btn-cast-window" class="btn btn-ghost btn-block">
+        🖥️ Open TV Screen Window
+      </button>
+
+      <div style="background:#f1f5f9; padding:12px; border-radius:14px; font-size:0.8rem; color:#334155;">
+        <strong>Smart TV or Apple TV Mirroring?</strong><br>
+        Open <code id="cast-tv-url" style="font-weight:800; color:#1d4ed8; word-break:break-all;"></code> on your TV or Mac/Laptop and keep playing right here!
+      </div>
+    </div>
+  </div>
+
+  <!-- Settings Modal Sheet -->
+  <div id="settings-modal" class="modal-backdrop hidden">
+    <div class="modal-sheet">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <h3>⚙️ Controller Settings</h3>
+        <button id="btn-close-settings" class="btn btn-ghost btn-sm">✕</button>
+      </div>
+      <div>
+        <label style="font-weight:800; font-size:0.85rem; display:block; margin-bottom:6px;">
+          Motion Swing Sensitivity: <span id="sens-val">1.0×</span>
+        </label>
+        <input id="input-sensitivity" type="range" min="0.6" max="1.45" step="0.05" value="1.0" style="width:100%;">
+      </div>
+      <label style="display:flex; align-items:center; gap:10px; font-weight:700; cursor:pointer;">
+        <input id="chk-phone-sound" type="checkbox" checked>
+        Controller phone speaker sound (whoosh &amp; hit)
+      </label>
+      <div style="font-size:0.8rem; color:#475569; background:#f8fafc; padding:10px 12px; border-radius:12px;">
+        <strong>Desktop Keyboard Controls:</strong><br>
+        <code>Space</code> = Toss / Swing &nbsp;•&nbsp; <code>A / D</code> = Aim Left/Right &nbsp;•&nbsp; <code>W</code> = Lob &nbsp;•&nbsp; <code>S</code> = Slice &nbsp;•&nbsp; <code>Shift</code> = Smash
+      </div>
+      <div style="display:flex; gap:10px;">
+        <button id="btn-modal-lobby" class="btn btn-ghost btn-block">Return to Lobby</button>
+        <a href="/" class="btn btn-red btn-block">Leave Room</a>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="/js/controller-app.js"></script>
+</body>
+</html>

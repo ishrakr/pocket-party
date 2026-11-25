@@ -1,0 +1,7 @@
+.git
+.certs
+node_modules
+tests
+.env
+*.log
+README.md

@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PocketParty — Google Cast Web Receiver</title>
+  <link rel="stylesheet" href="/css/styles.css">
+  <!-- Official Google Cast Receiver Framework (loaded gracefully when running on Chromecast) -->
+  <script src="https://www.gstatic.com/cast/sdk/libs/caf_receiver/v3/cast_receiver_framework.js" async></script>
+</head>
+<body class="tv-body" data-cast-receiver="true">
+  <canvas id="court-canvas"></canvas>
+
+  <div class="tv-toolbar">
+    <span id="cast-badge" class="pill pill-gold">📺 Google Cast Receiver</span>
+    <button id="btn-sound" class="btn btn-dark btn-sm hidden">🔊 Audio</button>
+    <button id="btn-fullscreen" class="btn btn-dark btn-sm hidden">⛶</button>
+    <button id="btn-lobby-back" class="btn btn-dark btn-sm hidden">← Lobby</button>
+  </div>
+
+  <div id="lobby-overlay" class="tv-overlay">
+    <div class="tv-lobby-card">
+      <div class="tv-qr-pane">
+        <span class="pill pill-gold">Scan to Join Match</span>
+        <div class="qr-frame">
+          <canvas id="qr-canvas" width="210" height="210"></canvas>
+        </div>
+        <div style="font-size:0.8rem; text-transform:uppercase; letter-spacing:0.12em; color:#94a3b8; font-weight:800;">
+          Room Code
+        </div>
+        <div id="room-code-display" class="room-code-big">----</div>
+        <div id="join-url-display" class="join-url-hint">Waiting for Cast Sender...</div>
+        <button id="btn-open-ctrl" class="hidden"></button>
+      </div>
+
+      <div class="tv-roster-pane">
+        <div class="tv-roster-header">
+          <div>
+            <h1>🎾 PocketParty</h1>
+            <div style="color:#475569; font-weight:700;">
+              Use your phone as a wireless motion racket! Up to 4 players can join this TV.
+            </div>
+          </div>
+          <span id="player-count-pill" class="pill pill-blue">0 / 4 Phones</span>
+        </div>
+
+        <div id="seats-grid" class="seats-grid"></div>
+
+        <div class="tv-config-bar">
+          <div class="seg-group" id="mode-group">
+            <button class="seg-btn active" data-mode="singles">1v1 Singles</button>
+            <button class="seg-btn" data-mode="doubles">2v2 Doubles</button>
+          </div>
+          <div class="seg-group" id="format-group">
+            <button class="seg-btn active" data-format="one_game">1 Game</button>
+            <button class="seg-btn" data-format="best_of_3">Best of 3</button>
+            <button class="seg-btn" data-format="best_of_5">Best of 5</button>
+          </div>
+          <div class="seg-group" id="diff-group">
+            <button class="seg-btn" data-diff="rookie">Rookie</button>
+            <button class="seg-btn active" data-diff="pro">Pro</button>
+            <button class="seg-btn" data-diff="champion">Champion</button>
+          </div>
+        </div>
+
+        <div style="color:#475569; font-weight:800; font-size:0.95rem; margin-top:auto;">
+          Tap <strong>Start Match</strong> on the Host phone controller to begin!
+          <button id="btn-start-match" class="hidden"></button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="summary-overlay" class="tv-overlay hidden">
+    <div class="summary-card">
+      <div style="font-size:3rem;">🏆</div>
+      <h1 id="summary-title" style="margin:8px 0 4px;">BLUE TEAM WINS!</h1>
+      <div id="summary-score" style="font-size:1.25rem; font-weight:800; color:#475569;"></div>
+      <table class="stats-table">
+        <thead>
+          <tr><th style="color:#2563eb;">BLUE</th><th>MATCH STATS</th><th style="color:#dc2626;">RED</th></tr>
+        </thead>
+        <tbody id="summary-stats-body"></tbody>
+      </table>
+      <div style="color:#475569; font-weight:800;">Tap <strong>Rematch</strong> on your phone to play again!</div>
+      <button id="btn-rematch" class="hidden"></button>
+      <button id="btn-return-lobby" class="hidden"></button>
+    </div>
+  </div>
+
+  <script type="module" src="/js/tv-app.js"></script>
+</body>
+</html>

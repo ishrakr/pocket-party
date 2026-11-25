@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PocketParty — Instant Split-Screen Demo</title>
+  <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body class="split-demo-body">
+  <iframe id="tv-frame" title="TV Court Display"></iframe>
+  <iframe id="ctrl-frame" title="Phone Motion Controller"></iframe>
+
+  <script type="module">
+    const res = await fetch('/api/rooms', { method: 'POST' });
+    const { roomCode } = await res.json();
+    document.getElementById('tv-frame').src = `/tv.html?room=${encodeURIComponent(roomCode)}`;
+    // Tiny stagger so TV registers first
+    setTimeout(() => {
+      document.getElementById('ctrl-frame').src = `/controller.html?room=${encodeURIComponent(roomCode)}`;
+    }, 150);
+  </script>
+</body>
+</html>

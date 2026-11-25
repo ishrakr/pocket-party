@@ -1,0 +1,23 @@
+{
+  "name": "pocket-party",
+  "version": "1.0.0",
+  "description": "PocketParty — Web-based motion-controlled party tennis for TV casting (Google Cast, AirPlay, Presentation API) with phone IMU rackets and 1-4 player multiplayer.",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ishrakr/pocket-party.git"
+  },
+  "homepage": "https://github.com/ishrakr/pocket-party#readme",
+  "bugs": {
+    "url": "https://github.com/ishrakr/pocket-party/issues"
+  },
+  "scripts": {
+    "start": "node server/index.js",
+    "start:https": "node server/index.js --https",
+    "dev": "node --watch server/index.js",
+    "test": "node --test tests/*.test.js"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

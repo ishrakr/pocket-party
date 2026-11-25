@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>PocketParty — TV Screen</title>
+  <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body class="tv-body">
+  <canvas id="court-canvas"></canvas>
+
+  <div class="tv-toolbar">
+    <span id="cast-badge" class="pill pill-dark hidden">📺 Cast Connected</span>
+    <button id="btn-sound" class="btn btn-dark btn-sm" title="Toggle Audio">🔊 Audio On</button>
+    <button id="btn-fullscreen" class="btn btn-dark btn-sm" title="Fullscreen">⛶ Fullscreen</button>
+    <button id="btn-lobby-back" class="btn btn-dark btn-sm hidden">← Lobby</button>
+  </div>
+
+  <!-- Lobby Overlay -->
+  <div id="lobby-overlay" class="tv-overlay">
+    <div class="tv-lobby-card">
+      <div class="tv-qr-pane">
+        <span class="pill pill-gold">Scan to Play</span>
+        <div class="qr-frame">
+          <canvas id="qr-canvas" width="210" height="210"></canvas>
+        </div>
+        <div style="font-size:0.8rem; text-transform:uppercase; letter-spacing:0.12em; color:#94a3b8; font-weight:800;">
+          Room Code
+        </div>
+        <div id="room-code-display" class="room-code-big">----</div>
+        <div id="join-url-display" class="join-url-hint">Connecting...</div>
+        <button id="btn-open-ctrl" class="btn btn-gold btn-sm btn-block" style="margin-top:4px;">
+          📱 Open Controller Tab
+        </button>
+      </div>
+
+      <div class="tv-roster-pane">
+        <div class="tv-roster-header">
+          <div>
+            <h1>🎾 PocketParty</h1>
+            <div style="color:#475569; font-weight:700; font-size:0.92rem;">
+              Connect 1–4 phones as wireless motion rackets. Empty seats auto-fill with CPU!
+            </div>
+          </div>
+          <span id="player-count-pill" class="pill pill-blue">0 / 4 Phones</span>
+        </div>
+
+        <div id="seats-grid" class="seats-grid"></div>
+
+        <div class="tv-config-bar">
+          <div class="seg-group" id="mode-group">
+            <button class="seg-btn active" data-mode="singles">1v1 Singles</button>
+            <button class="seg-btn" data-mode="doubles">2v2 Doubles</button>
+          </div>
+          <div class="seg-group" id="format-group">
+            <button class="seg-btn active" data-format="one_game">1 Game</button>
+            <button class="seg-btn" data-format="best_of_3">Best of 3</button>
+            <button class="seg-btn" data-format="best_of_5">Best of 5</button>
+          </div>
+          <div class="seg-group" id="diff-group">
+            <button class="seg-btn" data-diff="rookie">Rookie</button>
+            <button class="seg-btn active" data-diff="pro">Pro</button>
+            <button class="seg-btn" data-diff="champion">Champion</button>
+          </div>
+        </div>
+
+        <div style="display:flex; gap:12px; align-items:center; margin-top:auto;">
+          <button id="btn-start-match" class="btn btn-green" style="flex:1; font-size:1.15rem; padding:16px;">
+            ▶ Start Match
+          </button>
+          <a href="/" class="btn btn-ghost">Home</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Match Summary Overlay -->
+  <div id="summary-overlay" class="tv-overlay hidden">
+    <div class="summary-card">
+      <div style="font-size:3rem; line-height:1;">🏆</div>
+      <h1 id="summary-title" style="margin:8px 0 4px; font-size:2.1rem; font-weight:900;">BLUE TEAM WINS!</h1>
+      <div id="summary-score" style="font-size:1.25rem; font-weight:800; color:#475569;">Final Games: 2 – 0</div>
+
+      <table class="stats-table">
+        <thead>
+          <tr>
+            <th style="color:#2563eb;">BLUE</th>
+            <th>MATCH STATS</th>
+            <th style="color:#dc2626;">RED</th>
+          </tr>
+        </thead>
+        <tbody id="summary-stats-body"></tbody>
+      </table>
+
+      <div style="display:flex; gap:12px; justify-content:center;">
+        <button id="btn-rematch" class="btn btn-green" style="min-width:170px;">🔁 Rematch</button>
+        <button id="btn-return-lobby" class="btn btn-ghost" style="min-width:170px;">Change Players</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="/js/tv-app.js"></script>
+</body>
+</html>
