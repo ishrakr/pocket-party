@@ -41,9 +41,9 @@ export class CourtRenderer {
     this.stateReceivedAt = performance.now();
     this.time = 0;
 
-    // Smooth Wii-Sports-style behind-the-baseline camera
-    this.cam = { x: 0, y: 7.5, z: 19.8, lookY: 0.5, lookZ: -1.8, fov: 50 };
-    this._view = new Perspective(0.42, 0.35);
+    // Low over-the-shoulder Wii Sports Tennis POV camera behind the near baseline
+    this.cam = { x: 0, y: 4.8, z: 19.0, lookY: 0.85, lookZ: -2.2, fov: 50 };
+    this._view = new Perspective(0.38, 0.35);
     this._palette = {};
 
     // Visual effects pools
@@ -197,18 +197,19 @@ export class CourtRenderer {
     const H = this.canvas.height;
     const st = this.state;
 
-    // Smooth zoomed-in Wii-Sports-style camera tracking
+    // Steady Wii Sports Tennis over-the-shoulder POV camera behind the baseline
     const isServe = st && (st.phase === PHASE.SERVE_READY || st.phase === PHASE.SERVE_TOSS);
     const server = isServe ? st.players?.[st.serverSeat] : null;
-    const targetCamX = isServe
-      ? clamp((server?.x ?? 0) * 0.36, -1.9, 1.9)
-      : (st ? clamp(st.ball.x * 0.24, -2.2, 2.2) : Math.sin(this.time * 0.3) * 0.55);
-    const targetCamZ = isServe ? 18.6 : 19.8;
-    const targetCamY = isServe ? 6.9 : 7.5;
-    const shake = st && st.cameraImpulse > 0 ? (Math.random() - 0.5) * st.cameraImpulse * 0.28 : 0;
+    const isNearServe = Boolean(isServe && server?.team === TEAMS.BLUE);
+    const targetCamX = isNearServe
+      ? clamp((server?.x ?? 0) * 0.35, -1.6, 1.6)
+      : (st ? clamp(st.ball.x * 0.08, -0.75, 0.75) : Math.sin(this.time * 0.25) * 0.45);
+    const targetCamZ = isNearServe ? 18.0 : 19.0;
+    const targetCamY = isNearServe ? 4.3 : 4.8;
+    const shake = st && st.cameraImpulse > 0 ? (Math.random() - 0.5) * st.cameraImpulse * 0.22 : 0;
 
-    this.cam.x += (targetCamX - this.cam.x) * Math.min(1, dt * 4.5) + shake;
-    this.cam.y += (targetCamY - this.cam.y) * Math.min(1, dt * 3.4) + shake * 0.5;
+    this.cam.x += (targetCamX - this.cam.x) * Math.min(1, dt * 4.0) + shake;
+    this.cam.y += (targetCamY - this.cam.y) * Math.min(1, dt * 3.4) + shake * 0.45;
     this.cam.z += (targetCamZ - this.cam.z) * Math.min(1, dt * 3.4);
     this._view.update(this.cam, W, H);
 
@@ -250,21 +251,21 @@ export class CourtRenderer {
 
   _drawSkyAndStadiumBackdrop(ctx, W, H) {
     if (this._palette.W !== W || this._palette.H !== H) {
-      const sky = ctx.createLinearGradient(0, 0, W * 0.12, H * 0.37);
+      const sky = ctx.createLinearGradient(0, 0, W * 0.12, H * 0.34);
       sky.addColorStop(0, '#6FA8DC');
       sky.addColorStop(1, '#BFD9EE');
-      const apron = ctx.createLinearGradient(0, H * 0.34, 0, H);
+      const apron = ctx.createLinearGradient(0, H * 0.30, 0, H);
       apron.addColorStop(0, HUD.apron);
       apron.addColorStop(1, '#276B4E');
-      const court = ctx.createLinearGradient(0, H * 0.37, 0, H * 0.82);
+      const court = ctx.createLinearGradient(0, H * 0.34, 0, H * 0.88);
       court.addColorStop(0, '#2A55B0');
       court.addColorStop(1, HUD.court);
       this._palette = { W, H, sky, apron, court };
     }
     ctx.fillStyle = this._palette.sky;
-    ctx.fillRect(0, 0, W, H * 0.35);
+    ctx.fillRect(0, 0, W, H * 0.33);
     ctx.fillStyle = '#2A7254';
-    ctx.fillRect(0, H * 0.34, W, H * 0.66);
+    ctx.fillRect(0, H * 0.31, W, H * 0.69);
   }
 
   _drawStadiumStands(ctx, W, H) {
@@ -555,6 +556,12 @@ export class CourtRenderer {
 
     const s = foot.scale;
     const isNear = p.team === TEAMS.BLUE;
+    // Keep incoming balls clearly visible through your own near-side avatar in low POV
+    const translucentPov = isNear && st?.ball?.inPlay && st.ball.z < p.z;
+    if (translucentPov) {
+      ctx.save();
+      ctx.globalAlpha = 0.84;
+    }
 
     // 1. Court Drop Shadow
     ctx.fillStyle = 'rgba(15, 23, 42, 0.34)';
@@ -642,6 +649,7 @@ export class CourtRenderer {
 
     // 6. Articulated Floating Hand + 3D Tennis Racket (tracks live phone gyro & swing animation!)
     this._drawPlayerRacket(ctx, W, H, p, runBob, torso);
+    if (translucentPov) ctx.restore();
 
     // 7. Clean Player Name Tag below feet
     const ui = W / 1280;
