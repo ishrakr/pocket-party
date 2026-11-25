@@ -1,7 +1,8 @@
 // TV Display, Presentation API Receiver, and Google Cast Custom Web Receiver Runtime
-import { CAST_NAMESPACE, MSG, PHASE, TEAMS } from '../../shared/protocol.js';
+import { CAST_NAMESPACE, GAMES, MSG, PHASE, TEAMS } from '../../shared/protocol.js';
 import { GameSocket } from '/js/ws-client.js';
 import { CourtRenderer } from '/js/court-renderer.js';
+import { BowlingRenderer } from '/js/bowling-renderer.js';
 import { TennisAudio } from '/js/audio.js';
 import { renderQRToCanvas } from '/js/qr.js';
 
@@ -19,8 +20,12 @@ const lobbyOverlay = document.getElementById('lobby-overlay');
 const summaryOverlay = document.getElementById('summary-overlay');
 const summaryTitle = document.getElementById('summary-title');
 const summaryScore = document.getElementById('summary-score');
+const summaryStatsHead = document.getElementById('summary-stats-head');
 const summaryStatsBody = document.getElementById('summary-stats-body');
 const castBadge = document.getElementById('cast-badge');
+const modeGroup = document.getElementById('mode-group');
+const formatGroup = document.getElementById('format-group');
+const bowlingFormatGroup = document.getElementById('bowling-format-group');
 const btnSound = document.getElementById('btn-sound');
 const btnFullscreen = document.getElementById('btn-fullscreen');
 const btnLobbyBack = document.getElementById('btn-lobby-back');
@@ -29,13 +34,29 @@ const btnRematch = document.getElementById('btn-rematch');
 const btnReturnLobby = document.getElementById('btn-return-lobby');
 const btnOpenCtrl = document.getElementById('btn-open-ctrl');
 
-const renderer = new CourtRenderer(canvas, { showEmbeddedHud: true });
+let activeGameId = GAMES.TENNIS.id;
+let renderer = new CourtRenderer(canvas, { showEmbeddedHud: true });
 const audio = new TennisAudio();
 const socket = new GameSocket();
 
 let serverConfig = { joinBaseUrl: window.location.origin };
 let currentRoom = null;
 let currentGameState = null;
+
+function ensureRendererForGame(gameId) {
+  const normalized = gameId === GAMES.BOWLING.id ? GAMES.BOWLING.id : GAMES.TENNIS.id;
+  if (activeGameId === normalized && renderer) return;
+  activeGameId = normalized;
+  renderer.stop();
+  renderer = normalized === GAMES.BOWLING.id
+    ? new BowlingRenderer(canvas, { showEmbeddedHud: true })
+    : new CourtRenderer(canvas, { showEmbeddedHud: true });
+  if (currentRoom?.roomCode) renderer.setRoomCode(currentRoom.roomCode);
+  if (currentGameState && currentGameState.gameId === normalized) {
+    renderer.updateState(currentGameState);
+  }
+  renderer.start();
+}
 
 function resizeCanvas() {
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -75,10 +96,13 @@ function updateQrAndCode(code) {
 }
 
 function renderSeats(room) {
+  const isBowling = room.gameId === GAMES.BOWLING.id;
   playerCountPill.textContent = `${room.playerCount} / 4 Phones`;
   seatsGrid.innerHTML = '';
 
-  const roleLabels = ['Blue • Baseline', 'Red • Baseline', 'Blue • Net (Doubles)', 'Red • Net (Doubles)'];
+  const roleLabels = isBowling
+    ? ['Lane • Bowler 1', 'Lane • Bowler 2', 'Lane • Bowler 3', 'Lane • Bowler 4']
+    : ['Blue • Baseline', 'Red • Baseline', 'Blue • Net (Doubles)', 'Red • Net (Doubles)'];
 
   for (const s of room.seats) {
     const div = document.createElement('div');
@@ -89,17 +113,27 @@ function renderSeats(room) {
       </div>
       <div class="seat-meta">
         <div class="seat-name">${escapeHtml(s.name)} ${s.isHost ? '👑' : ''}</div>
-        <div class="seat-sub">${roleLabels[s.seat]} ${s.isHuman ? `• ${s.handedness === 'left' ? 'Lefty' : 'Righty'}` : (s.active ? '• Auto CPU' : '• Singles Off')}</div>
+        <div class="seat-sub">${roleLabels[s.seat]} ${s.isHuman ? `• ${s.handedness === 'left' ? 'Lefty' : 'Righty'}` : (s.active ? '• Auto CPU' : (isBowling ? '• Open Slot' : '• Singles Off'))}</div>
       </div>
     `;
     seatsGrid.appendChild(div);
   }
 
-  // Highlight active config pills
+  // Toggle game switcher & game-specific config pills
+  document.querySelectorAll('#game-group .seg-btn').forEach((b) => {
+    b.classList.toggle('active', b.dataset.game === (room.gameId || GAMES.TENNIS.id));
+  });
+  modeGroup?.classList.toggle('hidden', isBowling);
+  formatGroup?.classList.toggle('hidden', isBowling);
+  bowlingFormatGroup?.classList.toggle('hidden', !isBowling);
+
   document.querySelectorAll('#mode-group .seg-btn').forEach((b) => {
     b.classList.toggle('active', b.dataset.mode === room.mode);
   });
   document.querySelectorAll('#format-group .seg-btn').forEach((b) => {
+    b.classList.toggle('active', b.dataset.format === room.format);
+  });
+  document.querySelectorAll('#bowling-format-group .seg-btn').forEach((b) => {
     b.classList.toggle('active', b.dataset.format === room.format);
   });
   document.querySelectorAll('#diff-group .seg-btn').forEach((b) => {
@@ -108,10 +142,29 @@ function renderSeats(room) {
 }
 
 function renderSummary(state) {
+  if (state.gameId === GAMES.BOWLING.id) {
+    const activePlayers = (state.players || []).filter((p) => p.active).sort((a, b) => b.totalScore - a.totalScore);
+    const top = activePlayers[0];
+    const isTie = (state.winnerSeats?.length || 0) > 1;
+    summaryTitle.textContent = isTie ? 'TIE MATCH!' : `${(top?.name || 'PLAYER 1').toUpperCase()} WINS!`;
+    summaryTitle.style.color = isTie ? '#eab308' : (top?.color || '#2563eb');
+    summaryScore.textContent = `Top Score: ${top?.totalScore ?? 0} pts (${state.totalFrames} Frames)`;
+    if (summaryStatsHead) {
+      summaryStatsHead.innerHTML = '<tr><th>BOWLER</th><th>STRIKES / SPARES</th><th>TOTAL</th></tr>';
+    }
+    summaryStatsBody.innerHTML = activePlayers
+      .map((p) => `<tr><td style="color:${p.color}">${escapeHtml(p.name)}</td><td>${p.strikes} ⚡ / ${p.spares} ✨</td><td>${p.totalScore}</td></tr>`)
+      .join('');
+    return;
+  }
+
   const blueWon = state.winnerTeam === TEAMS.BLUE;
   summaryTitle.textContent = blueWon ? 'BLUE TEAM WINS!' : 'RED TEAM WINS!';
   summaryTitle.style.color = blueWon ? '#2563eb' : '#dc2626';
   summaryScore.textContent = `Final Games: ${state.games[0]} – ${state.games[1]}`;
+  if (summaryStatsHead) {
+    summaryStatsHead.innerHTML = '<tr><th style="color:#2563eb;">BLUE</th><th>MATCH STATS</th><th style="color:#dc2626;">RED</th></tr>';
+  }
 
   const st = state.stats;
   const rows = [
@@ -168,6 +221,7 @@ socket.on(MSG.WELCOME, (msg) => {
 
 socket.on(MSG.ROOM_STATE, ({ room }) => {
   currentRoom = room;
+  ensureRendererForGame(room.gameId);
   updateQrAndCode(room.roomCode);
   renderSeats(room);
 
@@ -185,6 +239,7 @@ socket.on(MSG.ROOM_STATE, ({ room }) => {
 
 socket.on(MSG.GAME_STATE, ({ state }) => {
   currentGameState = state;
+  if (state.gameId) ensureRendererForGame(state.gameId);
   renderer.updateState(state);
   if (state.phase === PHASE.MATCH_OVER) {
     renderSummary(state);
@@ -211,12 +266,27 @@ socket.on(MSG.GAME_EVENT, ({ event }) => {
     audio.playFanfare('point');
   } else if (event.type === 'game_over') {
     audio.playFanfare('game');
+  } else if (event.type === 'bowl_throw') {
+    audio.playBowlRoll();
+  } else if (event.type === 'pin_hit') {
+    audio.playPinCrash(event.intensity);
+  } else if (event.type === 'gutter_ball') {
+    audio.playGutter();
+  } else if (event.type === 'roll_over') {
+    if (event.isStrike || event.isSpare) audio.playFanfare(event.isStrike ? 'game' : 'point');
   } else if (event.type === 'match_over') {
     audio.playFanfare('match');
   }
 });
 
 // --- UI Controls on TV ---
+document.querySelectorAll('#game-group .seg-btn').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    audio.unlock();
+    socket.send({ type: MSG.SELECT_GAME, gameId: btn.dataset.game });
+  });
+});
+
 document.querySelectorAll('#mode-group .seg-btn').forEach((btn) => {
   btn.addEventListener('click', () => {
     audio.unlock();
@@ -225,6 +295,13 @@ document.querySelectorAll('#mode-group .seg-btn').forEach((btn) => {
 });
 
 document.querySelectorAll('#format-group .seg-btn').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    audio.unlock();
+    socket.send({ type: MSG.UPDATE_CONFIG, config: { format: btn.dataset.format } });
+  });
+});
+
+document.querySelectorAll('#bowling-format-group .seg-btn').forEach((btn) => {
   btn.addEventListener('click', () => {
     audio.unlock();
     socket.send({ type: MSG.UPDATE_CONFIG, config: { format: btn.dataset.format } });

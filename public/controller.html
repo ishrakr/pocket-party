@@ -41,6 +41,14 @@
 
     <!-- LOBBY VIEW (Controller acts as TV lobby remote!) -->
     <section id="ctrl-lobby-view" class="ctrl-lobby-panel">
+      <div>
+        <label>Select Game</label>
+        <div class="seg-group seg-group-dark" id="ctrl-game-group" style="width:100%; justify-content:space-between;">
+          <button class="seg-btn active" data-game="tennis" style="flex:1;">🎾 Motion Tennis</button>
+          <button class="seg-btn" data-game="bowling" style="flex:1;">🎳 Party Bowling</button>
+        </div>
+      </div>
+
       <div style="display:grid; grid-template-columns:1fr auto; gap:10px; align-items:end;">
         <div>
           <label for="input-player-name">Your Name</label>
@@ -56,11 +64,11 @@
       </div>
 
       <div>
-        <label>Choose Your Team &amp; Court Position</label>
+        <label>Choose Your Seat</label>
         <div id="seat-picker-grid" class="seat-picker-grid"></div>
       </div>
 
-      <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+      <div id="ctrl-tennis-config-row" style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
         <div>
           <label>Mode</label>
           <select id="select-mode" class="text-input" style="padding:9px 10px; font-size:0.9rem;">
@@ -78,6 +86,15 @@
         </div>
       </div>
 
+      <div id="ctrl-bowling-config-row" class="hidden">
+        <label>Frames</label>
+        <select id="select-bowling-format" class="text-input" style="padding:9px 10px; font-size:0.9rem;">
+          <option value="quick_3">3 Frames (Sprint)</option>
+          <option value="classic_5" selected>5 Frames (Party)</option>
+          <option value="full_10">10 Frames (Regulation)</option>
+        </select>
+      </div>
+
       <div>
         <label>CPU Skill Level</label>
         <div class="seg-group seg-group-dark" id="ctrl-diff-group" style="width:100%; justify-content:space-between;">
@@ -88,17 +105,17 @@
       </div>
 
       <button id="btn-ctrl-start" class="btn btn-green btn-block" style="padding:15px; font-size:1.1rem;">
-        🎾 Start Match on TV
+        🎮 Start Match on TV
       </button>
 
-      <div style="font-size:0.78rem; color:#94a3b8; text-align:center;">
+      <div id="ctrl-lobby-tip" style="font-size:0.78rem; color:#94a3b8; text-align:center;">
         Tip: Hold your phone securely like a tennis racket! Flick up to toss serves, swing forward to strike.
       </div>
     </section>
 
-    <!-- MATCH PLAY VIEW (Live Motion Racket Controller!) -->
+    <!-- MATCH PLAY VIEW (Live Motion Controller!) -->
     <section id="ctrl-play-view" class="hidden" style="flex:1; display:flex; flex-direction:column; gap:10px; min-height:0;">
-      <div class="ctrl-score-strip">
+      <div id="ctrl-tennis-strip" class="ctrl-score-strip">
         <div class="ctrl-team-score" style="color:#60a5fa;">
           <span>BLUE</span>
           <span id="ctrl-games-blue" class="pill pill-blue" style="color:#93c5fd;">0</span>
@@ -112,9 +129,20 @@
         </div>
       </div>
 
+      <div id="ctrl-bowling-strip" class="ctrl-score-strip hidden">
+        <div class="ctrl-team-score" style="color:#38bdf8; font-size:0.95rem;">
+          <span id="ctrl-bowl-frame">FRAME 1/5</span>
+        </div>
+        <div id="ctrl-bowl-turn" style="font-size:0.82rem; color:#facc15; font-weight:900;">YOUR TURN</div>
+        <div class="ctrl-team-score" style="color:#ffffff; font-size:0.95rem;">
+          <span>SCORE</span>
+          <span id="ctrl-bowl-score" class="pill pill-gold" style="color:#0f172a; background:#facc15;">0</span>
+        </div>
+      </div>
+
       <div id="ctrl-prompt" class="ctrl-prompt">READY TO PLAY</div>
 
-      <!-- Main Motion / Touch Swipe Racket Surface -->
+      <!-- Main Motion / Touch Swipe Pad -->
       <div id="racket-pad" class="racket-pad">
         <div id="shot-feedback" class="shot-feedback hidden">104 MPH • TOPSPIN!</div>
 
@@ -144,6 +172,21 @@
           <rect x="53" y="126" width="14" height="44" rx="5" fill="#facc15" stroke="#0f172a" stroke-width="2"/>
         </svg>
 
+        <!-- Animated SVG Bowling Ball for Party Bowling -->
+        <svg id="bowling-ball-svg" class="racket-visual hidden" viewBox="0 0 140 140" aria-hidden="true">
+          <defs>
+            <radialGradient id="ballGrad" cx="35%" cy="30%" r="65%">
+              <stop offset="0%" stop-color="#60a5fa"/>
+              <stop offset="55%" stop-color="#2563eb"/>
+              <stop offset="100%" stop-color="#0f172a"/>
+            </radialGradient>
+          </defs>
+          <circle cx="70" cy="70" r="56" fill="url(#ballGrad)" stroke="rgba(255,255,255,0.28)" stroke-width="3"/>
+          <circle cx="84" cy="46" r="7" fill="#090d16"/>
+          <circle cx="100" cy="58" r="7" fill="#090d16"/>
+          <circle cx="87" cy="67" r="6" fill="#090d16"/>
+        </svg>
+
         <div id="pad-hint" style="font-size:0.84rem; color:#cbd5e1; font-weight:700; text-align:center; padding:0 16px;">
           Swing your phone OR swipe across this pad!
         </div>
@@ -159,12 +202,26 @@
         </div>
       </div>
 
-      <!-- Quick Shot Modifiers (spin / lob) -->
+      <!-- Quick Shot Modifiers (Tennis spin / lob) -->
       <div class="shot-modifiers" id="shot-mod-group">
         <button class="mod-btn active" data-mod="auto">⚡ Auto</button>
         <button class="mod-btn" data-mod="topspin">🔥 Topspin</button>
         <button class="mod-btn" data-mod="slice">❄️ Slice</button>
         <button class="mod-btn" data-mod="lob">🎈 Lob</button>
+      </div>
+
+      <!-- Bowling Aim & Hook Controls -->
+      <div id="bowling-controls-group" class="hidden" style="display:flex; flex-direction:column; gap:8px; flex-shrink:0;">
+        <div class="shot-modifiers" style="grid-template-columns:1fr 1fr 1fr;">
+          <button id="btn-bowl-left" class="mod-btn" type="button">◀ Move Left</button>
+          <button id="btn-bowl-center" class="mod-btn" type="button">🎯 Center</button>
+          <button id="btn-bowl-right" class="mod-btn" type="button">Move Right ▶</button>
+        </div>
+        <div class="shot-modifiers" id="bowling-hook-group" style="grid-template-columns:repeat(3, 1fr);">
+          <button class="mod-btn" data-hook="-0.75" type="button">↶ Hook Left</button>
+          <button class="mod-btn active" data-hook="0" type="button">⬆️ Straight</button>
+          <button class="mod-btn" data-hook="0.75" type="button">Hook Right ↷</button>
+        </div>
       </div>
 
       <!-- Quick Action Row: Toss/Swing Tap + Calibrate -->

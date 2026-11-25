@@ -13,10 +13,53 @@
   <script type="module">
     const res = await fetch('/api/rooms', { method: 'POST' });
     const { roomCode } = await res.json();
-    document.getElementById('tv-frame').src = `/tv.html?room=${encodeURIComponent(roomCode)}`;
+    const tvFrame = document.getElementById('tv-frame');
+    const ctrlFrame = document.getElementById('ctrl-frame');
+    const forwardedKeys = new Set([
+      'Space', 'Enter',
+      'KeyW', 'KeyA', 'KeyS', 'KeyD',
+      'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight',
+      'ShiftLeft', 'ShiftRight'
+    ]);
+
+    function forwardKeyEvent(e) {
+      if (!forwardedKeys.has(e.code)) return;
+      const tag = e.target?.tagName;
+      if (tag === 'INPUT' || tag === 'SELECT' || tag === 'BUTTON' || tag === 'A') return;
+      const ctrlWin = ctrlFrame.contentWindow;
+      if (!ctrlWin) return;
+      if (e.type === 'keydown') e.preventDefault();
+      ctrlWin.dispatchEvent(new KeyboardEvent(e.type, {
+        code: e.code,
+        key: e.key,
+        shiftKey: e.shiftKey,
+        bubbles: true,
+        cancelable: true
+      }));
+    }
+
+    tvFrame.addEventListener('load', () => {
+      const tvWin = tvFrame.contentWindow;
+      const tvDoc = tvFrame.contentDocument;
+      if (!tvWin || !tvDoc) return;
+
+      tvDoc.addEventListener('click', (e) => {
+        if (e.target?.closest?.('#btn-start-match, #btn-rematch')) {
+          setTimeout(() => ctrlFrame.contentWindow?.focus(), 0);
+        }
+      });
+
+      tvWin.addEventListener('keydown', forwardKeyEvent);
+      tvWin.addEventListener('keyup', forwardKeyEvent);
+    });
+
+    window.addEventListener('keydown', forwardKeyEvent);
+    window.addEventListener('keyup', forwardKeyEvent);
+
+    tvFrame.src = `/tv.html?room=${encodeURIComponent(roomCode)}`;
     // Tiny stagger so TV registers first
     setTimeout(() => {
-      document.getElementById('ctrl-frame').src = `/controller.html?room=${encodeURIComponent(roomCode)}`;
+      ctrlFrame.src = `/controller.html?room=${encodeURIComponent(roomCode)}`;
     }, 150);
   </script>
 </body>

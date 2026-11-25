@@ -36,12 +36,17 @@
       <div class="tv-roster-pane">
         <div class="tv-roster-header">
           <div>
-            <h1>🎾 PocketParty</h1>
+            <h1>🎉 PocketParty</h1>
             <div style="color:#475569; font-weight:700;">
-              Use your phone as a wireless motion racket! Up to 4 players can join this TV.
+              Pick a game and use up to 4 phones as wireless motion controllers!
             </div>
           </div>
           <span id="player-count-pill" class="pill pill-blue">0 / 4 Phones</span>
+        </div>
+
+        <div class="seg-group" id="game-group" style="align-self:flex-start;">
+          <button class="seg-btn active" data-game="tennis">🎾 Motion Tennis</button>
+          <button class="seg-btn" data-game="bowling">🎳 Party Bowling</button>
         </div>
 
         <div id="seats-grid" class="seats-grid"></div>
@@ -55,6 +60,11 @@
             <button class="seg-btn active" data-format="one_game">1 Game</button>
             <button class="seg-btn" data-format="best_of_3">Best of 3</button>
             <button class="seg-btn" data-format="best_of_5">Best of 5</button>
+          </div>
+          <div class="seg-group hidden" id="bowling-format-group">
+            <button class="seg-btn" data-format="quick_3">3 Frames</button>
+            <button class="seg-btn active" data-format="classic_5">5 Frames</button>
+            <button class="seg-btn" data-format="full_10">10 Frames</button>
           </div>
           <div class="seg-group" id="diff-group">
             <button class="seg-btn" data-diff="rookie">Rookie</button>
@@ -77,7 +87,7 @@
       <h1 id="summary-title" style="margin:8px 0 4px;">BLUE TEAM WINS!</h1>
       <div id="summary-score" style="font-size:1.25rem; font-weight:800; color:#475569;"></div>
       <table class="stats-table">
-        <thead>
+        <thead id="summary-stats-head">
           <tr><th style="color:#2563eb;">BLUE</th><th>MATCH STATS</th><th style="color:#dc2626;">RED</th></tr>
         </thead>
         <tbody id="summary-stats-body"></tbody>

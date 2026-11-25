@@ -3,7 +3,9 @@ import assert from 'node:assert/strict';
 import { generateQRMatrix } from '../public/js/qr.js';
 import { SwingDetector } from '../public/js/motion-controller.js';
 import { CourtRenderer } from '../public/js/court-renderer.js';
+import { BowlingRenderer } from '../public/js/bowling-renderer.js';
 import { TennisEngine } from '../server/tennis-engine.js';
+import { BowlingEngine } from '../server/bowling-engine.js';
 
 describe('ISO 18004 QR Code Generator', () => {
   it('generates valid QR matrices with finder patterns, timing strips, and dark module across versions 1..6', () => {
@@ -136,5 +138,41 @@ describe('CourtRenderer 3D projection and canvas render pass', () => {
     assert.ok(farBase && farBase.y > 160 && farBase.y < center.y, `farBase=${JSON.stringify(farBase)}`);
     assert.ok(nearLeft && nearLeft.x > 100 && nearLeft.x < 640 && nearLeft.y > center.y && nearLeft.y < 700, `nearLeft=${JSON.stringify(nearLeft)}`);
     assert.ok(nearRight && nearRight.x > 640 && nearRight.x < 1180 && nearRight.y > center.y && nearRight.y < 700, `nearRight=${JSON.stringify(nearRight)}`);
+  });
+
+  it('renders 3D Party Bowling alley, pins, ball, and HUD without errors', () => {
+    let drawCalls = 0;
+    const noopGrad = { addColorStop() {} };
+    const mockCtx = new Proxy({
+      measureText: (t) => ({ width: String(t).length * 10 }),
+      createLinearGradient: () => noopGrad,
+      createRadialGradient: () => noopGrad
+    }, {
+      get(target, prop) {
+        if (prop in target) return target[prop];
+        return () => { drawCalls++; };
+      }
+    });
+    const mockCanvas = { width: 1280, height: 720, getContext: () => mockCtx };
+
+    const engine = new BowlingEngine();
+    engine.setSeatPlayer(0, { isHuman: true, clientId: 'p1', name: 'P1' });
+    engine.startMatch();
+    engine.handleBowlAim(0, { laneX: 0.1, aimAngle: -0.02, spin: -0.25 });
+
+    const renderer = new BowlingRenderer(mockCanvas, { showEmbeddedHud: true });
+    renderer.setRoomCode('BWL5');
+    renderer.updateState(engine.getSnapshot());
+    renderer.render(1 / 60);
+
+    engine.handleBowlThrow(0, { power: 0.9, spin: -0.25 });
+    for (let i = 0; i < 60; i++) engine.tick(1 / 60);
+    renderer.updateState(engine.getSnapshot());
+    renderer.handleGameEvent({ type: 'pin_hit', x: 0, z: -18.29, intensity: 0.9 });
+    renderer.render(1 / 60);
+
+    assert.ok(drawCalls > 120, `Expected substantial 3D bowling alley + pin draw calls, got ${drawCalls}`);
+    const headpin = renderer.project(0, 0, -18.29, 1280, 720);
+    assert.ok(headpin && headpin.x > 500 && headpin.x < 780 && headpin.y > 120 && headpin.y < 420);
   });
 });

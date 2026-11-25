@@ -3,6 +3,50 @@
 
 export const CAST_NAMESPACE = 'urn:x-cast:com.pocketparty.tennis';
 
+export const GAMES = {
+  TENNIS: {
+    id: 'tennis',
+    name: 'Motion Tennis',
+    icon: '🎾',
+    tagline: '1v1 Singles & 2v2 Doubles with topspin, slice, lobs & rocket serves'
+  },
+  BOWLING: {
+    id: 'bowling',
+    name: 'Party Bowling',
+    icon: '🎳',
+    tagline: '1–4 player pass-and-bowl alley with wrist hook spin & 10-pin physics'
+  }
+};
+
+export const GAME_IDS = Object.values(GAMES).map((g) => g.id);
+
+export const BOWLING_FORMATS = {
+  QUICK_3: { id: 'quick_3', label: '3 Frames (Sprint)', frames: 3 },
+  CLASSIC_5: { id: 'classic_5', label: '5 Frames (Party)', frames: 5 },
+  FULL_10: { id: 'full_10', label: '10 Frames (Regulation)', frames: 10 }
+};
+
+export const BOWLING_LANE = {
+  WIDTH: 1.06,
+  HALF_WIDTH: 0.53,
+  GUTTER_WIDTH: 0.24,
+  LENGTH: 18.29,
+  HEADPIN_Z: -18.29,
+  PIN_SPACING_X: 0.305,
+  PIN_SPACING_Z: 0.264,
+  PIN_RADIUS: 0.06,
+  PIN_HEIGHT: 0.38,
+  BALL_RADIUS: 0.109
+};
+
+export const BOWLING_PHASE = {
+  LOBBY: 'lobby',
+  AIMING: 'aiming',
+  ROLLING: 'rolling',
+  PIN_SETTLE: 'pin_settle',
+  MATCH_OVER: 'match_over'
+};
+
 export const COURT = {
   // Standard tennis court dimensions in meters (origin at court center on ground)
   // X: left (-) to right (+), Y: up (+), Z: far baseline (-) to near baseline (+)
@@ -77,6 +121,7 @@ export const MSG = {
   CREATE_ROOM: 'create_room',
   JOIN_ROOM: 'join_room',
   LEAVE_ROOM: 'leave_room',
+  SELECT_GAME: 'select_game',
   UPDATE_CONFIG: 'update_config',
   SELECT_SEAT: 'select_seat',
   UPDATE_PROFILE: 'update_profile',
@@ -85,6 +130,8 @@ export const MSG = {
   RETURN_LOBBY: 'return_lobby',
   SWING: 'swing',
   TOSS: 'toss',
+  BOWL_AIM: 'bowl_aim',
+  BOWL_THROW: 'bowl_throw',
   POSE: 'pose',
   MOVE_NUDGE: 'move_nudge',
   PING: 'ping',

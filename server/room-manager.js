@@ -2,12 +2,15 @@
 import {
   MSG,
   PHASE,
+  GAMES,
+  GAME_IDS,
   SEAT_DEFS,
   MATCH_MODES,
   MATCH_FORMATS,
   CPU_DIFFICULTIES
 } from '../shared/protocol.js';
 import { TennisEngine } from './tennis-engine.js';
+import { BowlingEngine } from './bowling-engine.js';
 
 // Easy-to-read uppercase room alphabet (omits O, 0, I, 1, L to avoid TV/phone typos)
 const ROOM_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
@@ -38,12 +41,8 @@ export class GameRoom {
       deviceName: null
     };
 
-    this.engine = new TennisEngine({
-      mode: MATCH_MODES.SINGLES,
-      format: MATCH_FORMATS.ONE_GAME.id,
-      difficulty: CPU_DIFFICULTIES.PRO,
-      onEvent: (evt) => this._handleEngineEvent(evt)
-    });
+    this.gameId = GAMES.TENNIS.id;
+    this.engine = this._createEngine(this.gameId);
 
     this._lastTick = Date.now();
     this._broadcastCounter = 0;
@@ -52,6 +51,40 @@ export class GameRoom {
     // 60Hz authoritative simulation loop, 30Hz state broadcast
     this._loop = setInterval(() => this._tick(), 1000 / 60);
     this._loop.unref?.();
+  }
+
+  _createEngine(gameId) {
+    if (gameId === GAMES.BOWLING.id) {
+      return new BowlingEngine({
+        onEvent: (evt) => this._handleEngineEvent(evt)
+      });
+    }
+    return new TennisEngine({
+      mode: MATCH_MODES.SINGLES,
+      format: MATCH_FORMATS.ONE_GAME.id,
+      difficulty: CPU_DIFFICULTIES.PRO,
+      onEvent: (evt) => this._handleEngineEvent(evt)
+    });
+  }
+
+  selectGame(gameId) {
+    if (!GAME_IDS.includes(gameId)) return;
+    if (this.gameId === gameId) return;
+    if (this.engine.phase !== PHASE.LOBBY && this.engine.phase !== PHASE.MATCH_OVER) return;
+
+    this.gameId = gameId;
+    this.engine = this._createEngine(gameId);
+    for (const ctrl of this.controllers.values()) {
+      this.engine.setSeatPlayer(ctrl.seat, {
+        isHuman: true,
+        clientId: ctrl.clientId,
+        name: ctrl.name,
+        handedness: ctrl.handedness,
+        color: ctrl.color
+      });
+    }
+    this.broadcastRoomState();
+    this.broadcastGameState();
   }
 
   _tick() {
@@ -82,15 +115,26 @@ export class GameRoom {
           : (evt.sweetSpot ? 'sweet_spot' : 'hit');
         controller.ws.sendJSON({ type: MSG.HAPTIC, pattern, shotType: evt.shotType, mph: evt.mph });
       }
-    } else if (evt.type === 'serve_toss') {
+    } else if (evt.type === 'serve_toss' || evt.type === 'bowl_throw') {
       const controller = this._findControllerBySeat(evt.seat);
       if (controller) {
         controller.ws.sendJSON({ type: MSG.HAPTIC, pattern: 'toss' });
       }
+    } else if (evt.type === 'roll_over' && (evt.isStrike || evt.isSpare)) {
+      const controller = this._findControllerBySeat(evt.seat);
+      if (controller) {
+        controller.ws.sendJSON({ type: MSG.HAPTIC, pattern: evt.isStrike ? 'smash' : 'sweet_spot' });
+      }
     } else if (evt.type === 'point_over' || evt.type === 'game_over' || evt.type === 'match_over') {
+      if (evt.type === 'match_over') {
+        this.broadcastRoomState();
+        this.broadcastGameState();
+      }
       for (const ctrl of this.controllers.values()) {
         const p = this.engine.players[ctrl.seat];
-        const won = p && p.team === evt.winnerTeam;
+        const won = this.gameId === GAMES.BOWLING.id
+          ? (Array.isArray(evt.winnerSeats) ? evt.winnerSeats.includes(ctrl.seat) : ctrl.seat === evt.winnerSeat)
+          : Boolean(p && p.team === evt.winnerTeam);
         ctrl.ws.sendJSON({
           type: MSG.HAPTIC,
           pattern: evt.type === 'match_over' ? (won ? 'victory' : 'loss') : (won ? 'point_win' : 'point_loss')
@@ -273,7 +317,7 @@ export class GameRoom {
   updateConfig(config) {
     if (this.engine.phase !== PHASE.LOBBY) return;
     // Don't switch back to singles if a human occupies seat 2 or 3
-    if (config.mode === MATCH_MODES.SINGLES) {
+    if (this.gameId === GAMES.TENNIS.id && config.mode === MATCH_MODES.SINGLES) {
       for (const c of this.controllers.values()) {
         if (c.seat >= 2) return;
       }
@@ -296,6 +340,9 @@ export class GameRoom {
     const ctrl = this.controllers.get(ws.id);
 
     switch (msg.type) {
+      case MSG.SELECT_GAME:
+        this.selectGame(msg.gameId);
+        break;
       case MSG.UPDATE_CONFIG:
         this.updateConfig(msg.config || {});
         break;
@@ -317,16 +364,28 @@ export class GameRoom {
         this.broadcastGameState();
         break;
       case MSG.TOSS:
-        if (ctrl) this.engine.handleToss(ctrl.seat);
+        if (ctrl && this.engine.handleToss) this.engine.handleToss(ctrl.seat);
         break;
       case MSG.SWING:
-        if (ctrl) this.engine.handleSwing(ctrl.seat, msg);
+        if (ctrl && this.engine.handleSwing) this.engine.handleSwing(ctrl.seat, msg);
+        break;
+      case MSG.BOWL_AIM:
+        if (ctrl && this.engine.handleBowlAim) {
+          this.engine.handleBowlAim(ctrl.seat, msg);
+          this.broadcastGameState();
+        }
+        break;
+      case MSG.BOWL_THROW:
+        if (ctrl && this.engine.handleBowlThrow) this.engine.handleBowlThrow(ctrl.seat, msg);
         break;
       case MSG.POSE:
-        if (ctrl) this.engine.handlePose(ctrl.seat, msg.pose);
+        if (ctrl && this.engine.handlePose) this.engine.handlePose(ctrl.seat, msg.pose);
         break;
       case MSG.MOVE_NUDGE:
-        if (ctrl) this.engine.handleMoveNudge(ctrl.seat, msg.nudgeX);
+        if (ctrl && this.engine.handleMoveNudge) {
+          this.engine.handleMoveNudge(ctrl.seat, msg.nudgeX);
+          if (this.gameId === GAMES.BOWLING.id) this.broadcastGameState();
+        }
         break;
       case MSG.CAST_STATUS:
         this.updateCastStatus(msg);
@@ -357,8 +416,9 @@ export class GameRoom {
 
     return {
       roomCode: this.code,
+      gameId: this.gameId,
       phase: this.engine.phase,
-      mode: this.engine.mode,
+      mode: this.engine.mode ?? MATCH_MODES.SINGLES,
       format: this.engine.format,
       difficulty: this.engine.difficulty,
       displayCount: this.displays.size,

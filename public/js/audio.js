@@ -229,6 +229,81 @@ export class TennisAudio {
     src.stop(t + dur + 0.05);
   }
 
+  playBowlRoll() {
+    if (this.muted || !this.ctx || !this.noiseBuffer) return;
+    const t = this.ctx.currentTime;
+    const src = this.ctx.createBufferSource();
+    src.buffer = this.noiseBuffer;
+
+    const lp = this.ctx.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.frequency.setValueAtTime(220, t);
+    lp.frequency.exponentialRampToValueAtTime(110, t + 0.45);
+
+    const g = this.ctx.createGain();
+    g.gain.setValueAtTime(0.001, t);
+    g.gain.linearRampToValueAtTime(0.24, t + 0.06);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.48);
+
+    src.connect(lp);
+    lp.connect(g);
+    g.connect(this.masterGain);
+    src.start(t);
+    src.stop(t + 0.5);
+  }
+
+  playPinCrash(intensity = 0.8) {
+    if (this.muted || !this.ctx) return;
+    const t = this.ctx.currentTime;
+    const hits = [0, 0.028, 0.065];
+    hits.forEach((delay, idx) => {
+      const osc = this.ctx.createOscillator();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(720 + idx * 180, t + delay);
+      osc.frequency.exponentialRampToValueAtTime(190, t + delay + 0.09);
+      const g = this.ctx.createGain();
+      g.gain.setValueAtTime(0.22 * intensity, t + delay);
+      g.gain.exponentialRampToValueAtTime(0.001, t + delay + 0.10);
+      osc.connect(g);
+      g.connect(this.masterGain);
+      osc.start(t + delay);
+      osc.stop(t + delay + 0.11);
+    });
+
+    if (this.noiseBuffer) {
+      const nSrc = this.ctx.createBufferSource();
+      nSrc.buffer = this.noiseBuffer;
+      const bp = this.ctx.createBiquadFilter();
+      bp.type = 'bandpass';
+      bp.frequency.setValueAtTime(1700, t);
+      bp.Q.value = 0.8;
+      const ng = this.ctx.createGain();
+      ng.gain.setValueAtTime(0.32 * intensity, t);
+      ng.gain.exponentialRampToValueAtTime(0.001, t + 0.16);
+      nSrc.connect(bp);
+      bp.connect(ng);
+      ng.connect(this.masterGain);
+      nSrc.start(t);
+      nSrc.stop(t + 0.18);
+    }
+  }
+
+  playGutter() {
+    if (this.muted || !this.ctx) return;
+    const t = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(195, t);
+    osc.frequency.exponentialRampToValueAtTime(75, t + 0.22);
+    const g = this.ctx.createGain();
+    g.gain.setValueAtTime(0.22, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.24);
+    osc.connect(g);
+    g.connect(this.masterGain);
+    osc.start(t);
+    osc.stop(t + 0.25);
+  }
+
   playFanfare(type = 'point') {
     if (this.muted || !this.ctx) return;
     const t = this.ctx.currentTime;

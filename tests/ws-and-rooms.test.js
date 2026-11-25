@@ -1,7 +1,7 @@
 import { describe, it, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { createAppServer } from '../server/index.js';
-import { MSG, MATCH_MODES, PHASE } from '../shared/protocol.js';
+import { MSG, MATCH_MODES, PHASE, GAMES, BOWLING_PHASE } from '../shared/protocol.js';
 
 function openWs(url) {
   return new Promise((resolve, reject) => {
@@ -80,7 +80,7 @@ describe('HTTP/HTTPS Server, RFC 6455 WebSockets & 4-Player Multiplayer Rooms', 
     assert.equal(proxyCfg.isPublicDeployment, true);
     assert.equal(proxyCfg.secure, true);
 
-    const routes = ['/', '/tv', '/receiver', '/controller', '/play', '/demo', '/css/styles.css', '/shared/protocol.js', '/js/court-renderer.js', '/js/tv-app.js', '/js/controller-app.js', '/js/landing-app.js', '/js/cast-bridge.js', '/js/motion-controller.js', '/js/qr.js', '/js/audio.js', '/js/ws-client.js'];
+    const routes = ['/', '/tv', '/receiver', '/controller', '/play', '/demo', '/css/styles.css', '/shared/protocol.js', '/js/court-renderer.js', '/js/bowling-renderer.js', '/js/tv-app.js', '/js/controller-app.js', '/js/landing-app.js', '/js/cast-bridge.js', '/js/motion-controller.js', '/js/qr.js', '/js/audio.js', '/js/ws-client.js'];
     for (const r of routes) {
       const res = await fetch(`http://127.0.0.1:${httpPort}${r}`);
       assert.equal(res.status, 200, `Expected 200 OK for ${r}`);
@@ -155,5 +155,91 @@ describe('HTTP/HTTPS Server, RFC 6455 WebSockets & 4-Player Multiplayer Rooms', 
 
     tv.close();
     phones.slice(1).forEach((p) => p.close());
+  });
+
+  it('broadcasts ROOM_STATE with MATCH_OVER to controllers when a match finishes and preserves preferredSeat on reconnect', async () => {
+    const wsUrl = `ws://127.0.0.1:${httpPort}/ws`;
+
+    const tv = await openWs(wsUrl);
+    tv.sendJSON({ type: MSG.CREATE_ROOM, role: 'display' });
+    const tvWelcome = await tv.waitFor((m) => m.type === MSG.WELCOME);
+    const code = tvWelcome.roomCode;
+
+    const p1 = await openWs(wsUrl);
+    p1.sendJSON({ type: MSG.JOIN_ROOM, role: 'controller', roomCode: code, name: 'P1' });
+    const w1 = await p1.waitFor((m) => m.type === MSG.WELCOME);
+    assert.equal(w1.seat, 0);
+
+    const p2 = await openWs(wsUrl);
+    p2.sendJSON({ type: MSG.JOIN_ROOM, role: 'controller', roomCode: code, name: 'P2' });
+    const w2 = await p2.waitFor((m) => m.type === MSG.WELCOME);
+    assert.equal(w2.seat, 1);
+
+    // Start match and finish it on the authoritative room engine
+    p1.sendJSON({ type: MSG.START_MATCH });
+    await p1.waitFor((m) => m.type === MSG.ROOM_STATE && m.room.phase === PHASE.SERVE_READY);
+
+    const room = server.roomManager.getRoom(code);
+    for (let i = 0; i < 4; i++) {
+      room.engine._awardPoint(0, 'ACE!', 'ace');
+    }
+
+    const overRoomMsg = await p1.waitFor((m) => m.type === MSG.ROOM_STATE && m.room.phase === PHASE.MATCH_OVER);
+    assert.equal(overRoomMsg.room.phase, PHASE.MATCH_OVER);
+    const victoryHaptic = await p1.waitFor((m) => m.type === MSG.HAPTIC && m.pattern === 'victory');
+    assert.equal(victoryHaptic.pattern, 'victory');
+
+    // Vacate seat 0, then disconnect P2 and reconnect with preferredSeat: 1
+    p1.close();
+    await tv.waitFor((m) => m.type === MSG.ROOM_STATE && !m.room.seats[0].isHuman);
+
+    p2.close();
+    await tv.waitFor((m) => m.type === MSG.ROOM_STATE && !m.room.seats[1].isHuman);
+
+    const p2Reconnect = await openWs(wsUrl);
+    p2Reconnect.sendJSON({ type: MSG.JOIN_ROOM, role: 'controller', roomCode: code, preferredSeat: 1, name: 'P2' });
+    const w2Reconnect = await p2Reconnect.waitFor((m) => m.type === MSG.WELCOME);
+    assert.equal(w2Reconnect.seat, 1);
+
+    tv.close();
+    p2Reconnect.close();
+  });
+
+  it('switches room game to Party Bowling via SELECT_GAME, accepts aim/throw, and broadcasts game state', async () => {
+    const wsUrl = `ws://127.0.0.1:${httpPort}/ws`;
+
+    const tv = await openWs(wsUrl);
+    tv.sendJSON({ type: MSG.CREATE_ROOM, role: 'display' });
+    const tvWelcome = await tv.waitFor((m) => m.type === MSG.WELCOME);
+    const code = tvWelcome.roomCode;
+
+    const p1 = await openWs(wsUrl);
+    p1.sendJSON({ type: MSG.JOIN_ROOM, role: 'controller', roomCode: code, name: 'Bowler1' });
+    await p1.waitFor((m) => m.type === MSG.WELCOME);
+
+    p1.sendJSON({ type: MSG.SELECT_GAME, gameId: GAMES.BOWLING.id });
+    const bowlRoom = await tv.waitFor((m) => m.type === MSG.ROOM_STATE && m.room.gameId === GAMES.BOWLING.id);
+    assert.equal(bowlRoom.room.gameId, GAMES.BOWLING.id);
+
+    p1.sendJSON({ type: MSG.UPDATE_CONFIG, config: { format: 'quick_3' } });
+    const cfgRoom = await tv.waitFor((m) => m.type === MSG.ROOM_STATE && m.room.format === 'quick_3');
+    assert.equal(cfgRoom.room.format, 'quick_3');
+
+    p1.sendJSON({ type: MSG.START_MATCH });
+    const aimingState = await tv.waitFor((m) => m.type === MSG.GAME_STATE && m.state.gameId === GAMES.BOWLING.id && m.state.phase === BOWLING_PHASE.AIMING);
+    assert.equal(aimingState.state.activeSeat, 0);
+
+    p1.sendJSON({ type: MSG.BOWL_AIM, laneX: -0.15, aimAngle: 0.04, spin: 0.25 });
+    const aimedState = await tv.waitFor((m) => m.type === MSG.GAME_STATE && Math.abs(m.state.aimX - (-0.15)) < 0.01);
+    assert.ok(Math.abs(aimedState.state.aimX - (-0.15)) < 0.01);
+
+    p1.sendJSON({ type: MSG.BOWL_THROW, power: 0.9, spin: 0 });
+    const rollingState = await tv.waitFor((m) => m.type === MSG.GAME_STATE && m.state.phase === BOWLING_PHASE.ROLLING);
+    assert.equal(rollingState.state.phase, BOWLING_PHASE.ROLLING);
+    const tossHaptic = await p1.waitFor((m) => m.type === MSG.HAPTIC && m.pattern === 'toss');
+    assert.equal(tossHaptic.pattern, 'toss');
+
+    tv.close();
+    p1.close();
   });
 });

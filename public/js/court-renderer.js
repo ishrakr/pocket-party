@@ -81,6 +81,7 @@ export class CourtRenderer {
       if (this.ballTrail.length > 20) this.ballTrail.shift();
     } else if (newState?.phase === PHASE.SERVE_READY || newState?.phase === PHASE.LOBBY) {
       this.ballTrail.length = 0;
+      this.bounceMarks.length = 0;
     }
   }
 
@@ -1026,30 +1027,31 @@ export class CourtRenderer {
       drawRow(1, 50, 'RED TEAM', '#ef4444', st.games[1], st.scoreText.red, serverTeam === TEAMS.RED);
       ctx.restore();
 
-      // 2. Shot Speed Radar + Rally Pill (Top Right)
+      // 2. Shot Speed Radar + Rally Pill (Top Right, positioned below .tv-toolbar)
       if (st.lastShotMph > 0 || st.rallyCount > 1) {
         const pillW = 190 * scale;
         const pillH = 66 * scale;
         const px = W - pad - pillW;
+        const py = pad + 52 * scale;
         ctx.save();
         ctx.fillStyle = 'rgba(15, 23, 42, 0.80)';
-        this._roundRect(ctx, px, pad, pillW, pillH, 14 * scale);
+        this._roundRect(ctx, px, py, pillW, pillH, 14 * scale);
         ctx.fill();
 
         ctx.fillStyle = '#38bdf8';
         ctx.font = `800 ${Math.round(12 * scale)}px system-ui, sans-serif`;
         ctx.textAlign = 'left';
-        ctx.fillText('RADAR', px + 14 * scale, pad + 20 * scale);
+        ctx.fillText('RADAR', px + 14 * scale, py + 20 * scale);
 
         ctx.fillStyle = '#ffffff';
         ctx.font = `900 ${Math.round(24 * scale)}px system-ui, sans-serif`;
-        ctx.fillText(`${st.lastShotMph} MPH`, px + 14 * scale, pad + 47 * scale);
+        ctx.fillText(`${st.lastShotMph} MPH`, px + 14 * scale, py + 47 * scale);
 
         if (st.rallyCount > 1) {
           ctx.fillStyle = '#facc15';
           ctx.font = `800 ${Math.round(13 * scale)}px system-ui, sans-serif`;
           ctx.textAlign = 'right';
-          ctx.fillText(`RALLY ×${st.rallyCount}`, px + pillW - 14 * scale, pad + 20 * scale);
+          ctx.fillText(`RALLY ×${st.rallyCount}`, px + pillW - 14 * scale, py + 20 * scale);
         }
         ctx.restore();
       }

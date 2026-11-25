@@ -151,4 +151,73 @@ describe('TennisEngine physics, serves, scoring, and AI', () => {
     assert.equal(engine.phase, PHASE.MATCH_OVER, 'CPU vs CPU doubles match should complete cleanly');
     assert.ok(engine.winnerTeam === TEAMS.BLUE || engine.winnerTeam === TEAMS.RED);
   });
+
+  it('resets transient flags, callouts, and shot speed on returnToLobby and startMatch', () => {
+    const engine = new TennisEngine();
+    engine.setSeatPlayer(0, { isHuman: true, clientId: 'p1', name: 'Alice' });
+    engine.startMatch();
+
+    engine.handleToss(0);
+    advance(engine, 0.55);
+    engine.handleSwing(0, { power: 0.9, spin: 0.4, aim: 0 });
+    assert.ok(engine.lastShotMph > 0);
+
+    engine._handleServeFault('FAULT!');
+    assert.equal(engine._isSecondServePending, true);
+    assert.ok(engine.lastCallout !== null);
+
+    engine.returnToLobby();
+    assert.equal(engine.phase, PHASE.LOBBY);
+    assert.equal(engine._isLetReplay, false);
+    assert.equal(engine._isSecondServePending, false);
+    assert.equal(engine.lastCallout, null);
+    assert.equal(engine.lastShotMph, 0);
+    assert.equal(engine.netWave, 0);
+    assert.equal(engine.cameraImpulse, 0);
+
+    engine._isLetReplay = true;
+    engine._isSecondServePending = true;
+    engine.lastShotMph = 120;
+    engine.lastCallout = { text: 'STALE', kind: 'info', at: 99 };
+    engine.startMatch();
+    assert.equal(engine.phase, PHASE.SERVE_READY);
+    assert.equal(engine._isLetReplay, false);
+    assert.equal(engine._isSecondServePending, false);
+    assert.equal(engine.lastCallout, null);
+    assert.equal(engine.lastShotMph, 0);
+  });
+
+  it('replays serve on net-cord Let without adding a fault', () => {
+    const events = [];
+    const engine = new TennisEngine({ onEvent: (e) => events.push(e) });
+    engine.setSeatPlayer(0, { isHuman: true, clientId: 'p1', name: 'Alice' });
+    engine.setSeatPlayer(1, { isHuman: true, clientId: 'p2', name: 'Bob' });
+    engine.startMatch();
+
+    engine.phase = PHASE.RALLY;
+    engine.isServeBall = true;
+    engine.lastHitterSeat = 0;
+    engine.lastHitterTeam = TEAMS.BLUE;
+    engine.faultCount = 0;
+    engine.ball.inPlay = true;
+    engine.ball.x = 0.2;
+    engine.ball.y = 0.85;
+    engine.ball.z = 0.08;
+    engine.ball.vx = 0;
+    engine.ball.vy = 0.5;
+    engine.ball.vz = -20;
+    engine.ball.spin = 0;
+
+    engine.tick(1 / 60);
+    assert.ok(events.some((e) => e.type === 'net_cord'), 'expected net_cord event');
+    assert.equal(engine.phase, PHASE.POINT_OVER);
+    assert.equal(engine._isLetReplay, true);
+    assert.equal(engine.faultCount, 0);
+
+    advance(engine, 1.5);
+    assert.equal(engine.phase, PHASE.SERVE_READY);
+    assert.equal(engine.faultCount, 0);
+    assert.equal(engine.serverSeat, 0);
+    assert.equal(engine._isLetReplay, false);
+  });
 });

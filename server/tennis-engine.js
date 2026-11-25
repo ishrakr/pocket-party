@@ -70,10 +70,7 @@ export class TennisEngine {
     this.lastHitterSeat = -1;
     this.lastHitterTeam = -1;
     this.winnerTeam = -1;
-    this.lastCallout = null;
-    this.lastShotMph = 0;
-    this.netWave = 0; // Visual net ripple decay
-    this.cameraImpulse = 0; // Screen punch on smashes / rocket serves
+    this._resetTransientState();
 
     // Match statistics
     this.stats = {
@@ -213,12 +210,22 @@ export class TennisEngine {
     this.ball.vx = this.ball.vy = this.ball.vz = 0;
   }
 
+  _resetTransientState() {
+    this.lastCallout = null;
+    this.lastShotMph = 0;
+    this.netWave = 0; // Visual net ripple decay
+    this.cameraImpulse = 0; // Screen punch on smashes / rocket serves
+    this._isLetReplay = false;
+    this._isSecondServePending = false;
+  }
+
   startMatch() {
     this._syncActivePlayers();
     this.games = [0, 0];
     this.points = [0, 0];
     this.serverSeat = 0;
     this.winnerTeam = -1;
+    this._resetTransientState();
     this.stats = {
       aces: [0, 0],
       winners: [0, 0],
@@ -234,6 +241,7 @@ export class TennisEngine {
   returnToLobby() {
     this.phase = PHASE.LOBBY;
     this.winnerTeam = -1;
+    this._resetTransientState();
     this._setupLobbyPositions();
   }
 
@@ -289,8 +297,6 @@ export class TennisEngine {
         p.z = pSide * 3.8;
       } else {
         // Receiving team
-        const isPrimaryReceiver = this.mode === MATCH_MODES.SINGLES ||
-          (deuce ? p.role === 'back' : p.role === 'back');
         if (this.mode === MATCH_MODES.SINGLES) {
           p.x = -serveXSign * 2.1;
           p.z = pSide * (COURT.HALF_LENGTH + 0.25);
@@ -819,6 +825,7 @@ export class TennisEngine {
 
   _stepBall(dt) {
     const b = this.ball;
+    const prevX = b.x;
     const prevZ = b.z;
     const prevY = b.y;
 
@@ -839,7 +846,7 @@ export class TennisEngine {
     if ((prevZ > 0 && b.z <= 0) || (prevZ < 0 && b.z >= 0)) {
       const frac = Math.abs(prevZ) / (Math.abs(prevZ - b.z) || 1);
       const yCross = prevY + (b.y - prevY) * frac;
-      const xCross = b.x;
+      const xCross = prevX + (b.x - prevX) * frac;
       const nHeight = netHeightAt(xCross);
 
       if (Math.abs(xCross) <= COURT.NET_POST_X && yCross < nHeight) {
@@ -1278,6 +1285,7 @@ export class TennisEngine {
   getSnapshot() {
     const score = formatScore(this.points[0], this.points[1]);
     return {
+      gameId: 'tennis',
       clock: Number(this.clock.toFixed(3)),
       phase: this.phase,
       mode: this.mode,
